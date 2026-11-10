@@ -33,6 +33,15 @@ export interface PlotSummary {
 
 export type CameraPosition = 'front' | 'left' | 'right' | 'back';
 
+/** One encoding of a camera video. Listed best-first in `files.videoRenditions` (WS-E picks what the browser can decode). */
+export interface VideoRendition {
+  /** Relative to the plot directory. */
+  src: string;
+  codec: 'hevc' | 'h264';
+  width: number;
+  height: number;
+}
+
 export interface PlotManifest {
   id: string;
   name: string;
@@ -57,6 +66,8 @@ export interface PlotManifest {
     dtm?: string;
     /** A missing camera is rendered as "Camera offline". */
     video?: Partial<Record<CameraPosition, string>>;
+    /** Optional higher-quality renditions (e.g. 4K HEVC + 4K/1080p/720p H.264), best first. `video` stays the fallback. */
+    videoRenditions?: Partial<Record<CameraPosition, VideoRendition[]>>;
     /** e.g. { hist_dbh_cm: 'media/hist_dbh_cm.png' } */
     charts?: Record<string, string>;
   };

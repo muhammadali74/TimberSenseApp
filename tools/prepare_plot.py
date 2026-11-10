@@ -562,15 +562,27 @@ def capture_date_from(video: Path | None, fallback: str) -> str:
     return fallback
 
 
-def export_video(out: Path, video: Path, force: bool) -> dict:
+def export_video(out: Path, video: Path, force: bool) -> tuple[dict, dict]:
+    """Returns (files.video, files.videoRenditions). Renditions are listed best-first for WS-E's player."""
     vdir = out / "media" / "video"
-    files = {"1080": vdir / "front_1080.mp4", "720": vdir / "front_720.mp4", "poster": vdir / "front_poster.jpg"}
-    if force or not all(f.exists() for f in files.values()):
-        log(f"transcoding {video.name} (this takes a few minutes)…")
+    needed = [vdir / n for n in ("front_2160.mp4", "front_1080.mp4", "front_720.mp4", "front_poster.jpg")]
+    if force or not all(f.exists() for f in needed):
+        log(f"transcoding {video.name} incl. 4K (this takes several minutes)…")
         subprocess.run([str(TOOLS / "transcode.sh"), str(video), str(vdir), "front"], check=True)
     else:
         log("video: reusing existing renditions")
-    return {"front": "media/video/front_720.mp4"}
+    candidates = [
+        ("front_2160_hevc.mp4", "hevc", 2160),
+        ("front_2160.mp4", "h264", 2160),
+        ("front_1080.mp4", "h264", 1080),
+        ("front_720.mp4", "h264", 720),
+    ]
+    renditions = [
+        {"src": f"media/video/{name}", "codec": codec, "width": round(h * 16 / 9), "height": h}
+        for name, codec, h in candidates
+        if (vdir / name).exists()
+    ]
+    return {"front": "media/video/front_720.mp4"}, {"front": renditions}
 
 
 # ════════════════════════════════ main ════════════════════════════════
@@ -675,7 +687,7 @@ def main(argv=None) -> None:
     videos = sorted(src.glob("*.mp4"))
     video = args.video or (videos[0] if videos else None)
     if video and not args.no_video:
-        files["video"] = export_video(out, video, args.force_video)
+        files["video"], files["videoRenditions"] = export_video(out, video, args.force_video)
     elif args.no_video and (out / "media" / "video").exists():
         shutil.rmtree(out / "media" / "video")
 

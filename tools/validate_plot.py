@@ -77,6 +77,12 @@ def validate(plot_dir: Path) -> Report:
     for cam, rel in (files.get("video") or {}).items():
         r.check(cam in CAMERAS, f"files.video: unknown camera '{cam}'")
         exists(rel, f"files.video.{cam}")
+    for cam, rends in (files.get("videoRenditions") or {}).items():
+        r.check(cam in CAMERAS, f"files.videoRenditions: unknown camera '{cam}'")
+        for i, v in enumerate(rends):
+            r.check(v.get("codec") in ("hevc", "h264"), f"files.videoRenditions.{cam}[{i}]: codec must be hevc|h264")
+            r.check(all(isinstance(v.get(k), int) for k in ("width", "height")), f"files.videoRenditions.{cam}[{i}]: width/height")
+            exists(v.get("src", ""), f"files.videoRenditions.{cam}[{i}]")
     for key, rel in (files.get("charts") or {}).items():
         exists(rel, f"files.charts.{key}")
 

@@ -32,7 +32,7 @@ Inputs per plot (from `testdata/<plot>/`):
 - `forest_pipeline/*_dbh_cylinders.ply`, `*_height_sticks.ply`, `*_dtm.ply`: marker geometry, or regenerated from the CSV
 - `trees/<id>/thumbnail.png`, `qsm_mesh.ply`: per-tree card image and optional QSM mesh
 - `visuals/*.png`: histograms and agreement charts for the plot report
-- video `.mp4` (HEVC 4K): transcode to **H.264 1080p/720p** because Chrome cannot reliably play HEVC
+- video `.mp4` (HEVC 4K): keep a stream-copied **HEVC 4K** file for browsers that can decode it, and transcode to **H.264 4K/1080p/720p** because Chrome cannot reliably play HEVC
 - `traj.csv` (t, x, y, z; 10 Hz, 119 s): XY matches the cloud frame. Z is offset by about 19 m (the trajectory's z≈0 while the cloud's ground is at z≈19), so the path is drawn at local DTM height plus sensor height. There's no orientation data, so heading is derived from velocity.
 
 Outputs go to `public/data/plots/<plotId>/`. The exact formats are defined in **§5 Contracts**:
@@ -148,6 +148,8 @@ interface PlotManifest {
   files: {
     cloud: string; trees: string; trajectory?: string; dtm?: string;
     video?: { front?: string; left?: string; right?: string; back?: string }; // missing = "offline"
+    videoRenditions?: { front?: VideoRendition[]; /* … same cameras */ };   // optional; best first (WS-E)
+    // VideoRendition = { src: string; codec: 'hevc' | 'h264'; width: number; height: number }
     charts?: Record<string, string>;                   // e.g. hist_dbh_cm → media/hist_dbh_cm.png
   };
   summary: PlotSummary; // camelCase version of plot_summary.json + carbonT, co2eT
@@ -423,9 +425,23 @@ Everything else starts once this is merged.
 - `RigMarker`: a backpack/sensor glyph with a heading cone and a lidar range ring (15 m).
 - `ReplayTimeline`: play/pause, scrubbing, speed (0.5–4×), the current time and an elapsed trail.
 - **Reveal mode:** sets `playback.reveal`, and the store passes `uRevealT` on to B's shader.
-- **Follow-camera mode:** chase cam or first-person from the rig.
-- `CameraFeeds`: 4 tiles. Front is a `<video>` synced to the timeline: the timeline is the master clock, and the video is re-synced when drift exceeds 0.15 s. Left, right and back show "Camera offline". Each tile can be expanded, and the offset slider is in the settings.
-- **Done when** playing the sample shows the rig moving, the trail growing, the cloud revealing and the video in sync.
+- **First-person replay ("walk the capture"):** the headline feature. During replay the 3D camera walks through the point cloud exactly as the operator walked in the video, so the cloud and the front-camera footage move together.
+  - **Pose:** position comes from `trajectory.samples` interpolated at the current time (Catmull-Rom, so motion is smooth at 60 fps between the 10 Hz samples). Height is the trajectory Z (DTM + sensor height) plus a calibration offset, so it follows the terrain like B's walk mode.
+  - **Heading:** yaw from the trajectory, smoothed with a ~0.6 s window so footstep jitter doesn't shake the view. There is no IMU orientation, so the view turns with the walking direction, not with head turns. This is a known limit of the data.
+  - **Matching the footage:** the 3D field of view is set from the front camera's horizontal FOV, adjusted for the canvas aspect, so objects line up with the video. The calibration panel holds time offset (`videoOffsetS` default from the trajectory), heading offset, camera pitch, horizontal FOV and height offset. Values are saved per plot in the browser.
+  - **Looking around:** while paused, drag to look around from the current spot. Pressing play eases the view back to the walking direction.
+  - Runs as `cameraMode: 'follow'`. B's `CameraController` already hands over control in this mode. The rig marker hides in first person.
+- **Clock and sync:** while a front video is playing, **the video is the master clock**. `requestVideoFrameCallback` gives the time of the frame on screen, and the camera time is extrapolated between frames (≤ 1 frame of error). While scrubbing or paused, the timeline is master and seeks the video. Without a video (e.g. the sample), a timeline clock drives everything. Speed 0.5–4× maps to `video.playbackRate`.
+- **4K video in the browser:** the front camera is played at up to 3840×2160.
+  - The player takes the renditions listed in `files.videoRenditions.front` (§5.2) and picks the best one the browser can decode: the original **4K HEVC** (`hvc1`, stream-copied, no quality loss) where the GPU and browser support it (`MediaSource.isTypeSupported` / `canPlayType`), otherwise **4K H.264**, then 1080p and 720p.
+  - A quality menu (Auto / 4K / 1080p / 720p) overrides it. Auto steps down if 4K drops frames (`getVideoPlaybackQuality`).
+  - Falls back to `files.video.front` when no renditions are listed.
+- **`CameraFeeds` as picture-in-picture:** in first-person mode the 3D view is full-screen and the front video floats as a PiP window. The window can be resized (S / M / L), snapped to any corner, and expanded to fill the viewer. A camera switcher (Front / Left / Right / Back) shows "Camera offline" for the missing cameras. Outside first-person mode the same panel shows as a smaller tile.
+- **Done when:**
+  - playing the sample shows the rig moving, the trail growing and the cloud revealing
+  - in first person on `fariy_1_test` the 3D walk visibly matches the 4K front video (turns and stops line up after calibration)
+  - 4K plays smoothly in Chrome via either HEVC or H.264.
+- **Data (small change to A's tools):** `tools/transcode.sh` adds a stream-copied HEVC 4K file (`front_2160_hevc.mp4`, `+faststart`) and a **4K H.264** encode (`front_2160.mp4`), and `prepare_plot.py` lists all renditions in `files.videoRenditions`.
 
 #### F — Cinematic flythrough
 - Path generators from `trees.json` and the plot bbox:
