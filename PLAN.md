@@ -455,8 +455,8 @@ I               ████████████████████
 ---
 
 ## 9. Working conventions
-- **Branches:** `ws-<letter>/<short-topic>` (e.g. `ws-b/edl-pass`). Keep PRs small (≤ ~400 lines) and squash-merge into `main`.
-- **Rebasing:** rebase on `main` daily. `main` must always build and run.
+- **Branches:** `ws-<letter>/<short-topic>` (e.g. `ws-b/edl-pass`), branched from **`dev`**. Keep PRs small (≤ ~400 lines) and squash-merge into `dev`. `main` only receives tested milestone merges from `dev` (M1–M4).
+- **Rebasing:** rebase on `dev` daily. `dev` and `main` must always build and run.
 - **Contracts:** a change to `src/types/`, `store.ts`, `lib/` or `components/ui/` needs its own PR, a note in the PR body naming the affected workstreams, and a review by the foundation owner.
 - **Sample-first:** each workstream develops against `public/data/plots/sample/` and must also work on `fariy_1_test` before its milestone.
 - **Quality gate:** `npm run check` (tsc + Biome) must pass. Every UI PR includes a screenshot or GIF.

@@ -67,7 +67,7 @@ Every viewer layer and toolbar slot already exists as an empty component in its 
 
 ## Conventions (full list in PLAN.md §9)
 
-- **Branches:** `ws-<letter>/<topic>`, e.g. `ws-c/dbh-ring`. Keep PRs small, squash-merge into `main`, and rebase daily.
+- **Branches:** `ws-<letter>/<topic>` from `dev`, e.g. `ws-c/dbh-ring`. Keep PRs small, squash-merge into **`dev`**, and rebase on `dev` daily. `main` only gets milestone merges from `dev`.
 - **Folders:** edit only the folders your workstream owns. Changes to `src/types/`, `viewer/store.ts`, `viewer/PlotDataContext.tsx`, `lib/`, `components/ui/` or `app/` go in a separate **contract PR** that lists the workstreams it affects.
 - **Scene frame:** metres, **Z-up**, origin at the plot centre on the ground. Data files are already in this frame.
 - **Units:** format every number through `lib/format.ts`. Never hand-format units.
