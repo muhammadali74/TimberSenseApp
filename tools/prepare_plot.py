@@ -392,8 +392,59 @@ def export_trajectory(out: Path, traj_csv: Path, offset: np.ndarray, ground: Gro
     return samples
 
 
+def load_dbh_rings(src: Path) -> tuple[dict[int, np.ndarray], dict[int, float]]:
+    """*_dbh_cylinders.ply → {instance id: (n_rings, pts_per_ring, 3)} and *_dbh.csv h* (DBH height)."""
+    fp = src / "forest_pipeline"
+    hits = sorted(fp.glob("*_dbh_cylinders.ply")) if fp.exists() else []
+    rings: dict[int, np.ndarray] = {}
+    if hits:
+        v, _ = read_ply(hits[0])
+        xyz = np.column_stack([v["x"], v["y"], v["z"]])
+        ids = v["instance_id"].astype(int)
+        for tid in np.unique(ids):
+            pts = xyz[ids == tid]
+            # Rings are stored as contiguous blocks; pick the block count that gives the roundest circles.
+            best = None
+            for k in (5, 4, 3, 6, 7, 8, 2, 1):
+                if len(pts) % k:
+                    continue
+                blocks = pts.reshape(k, -1, 3)
+                c = blocks.mean(1, keepdims=True)
+                spread = np.linalg.norm(blocks - c, axis=2).std(1).max()
+                if best is None or spread < best[0] - 1e-6:
+                    best = (spread, blocks)
+            if best is not None and best[0] < 0.01:
+                rings[int(tid)] = best[1]
+    h_star = {}
+    dbh_csv = sorted(fp.glob("*_dbh.csv")) if fp.exists() else []
+    if dbh_csv:
+        with open(dbh_csv[0]) as f:
+            for r in csv.DictReader(f):
+                if num(r.get("h_star")) is not None:
+                    h_star[int(r["instance_id"])] = float(r["h_star"])
+    return rings, h_star
+
+
+def ring_params(blocks: np.ndarray, offset: np.ndarray) -> list[dict]:
+    out = []
+    for ring in blocks:
+        c = ring.mean(0)
+        normal = np.linalg.svd(ring - c)[2][-1]
+        if normal[2] < 0:
+            normal = -normal
+        out.append({
+            "center": [round(float(v), 4) for v in (c - offset)],
+            "normal": [round(float(v), 5) for v in normal],
+            "radiusM": round(float(np.linalg.norm(ring - c, axis=1).mean()), 4),
+        })
+    out.sort(key=lambda r: r["center"][2])
+    return out
+
+
 def export_trees(out: Path, src: Path, offset: np.ndarray, ground: Ground, centroids: dict, with_qsm: bool) -> list:
     from PIL import Image
+
+    dbh_rings, h_star = load_dbh_rings(src)
 
     (out / "media" / "thumbs").mkdir(parents=True, exist_ok=True)
     if with_qsm:
@@ -435,6 +486,12 @@ def export_trees(out: Path, src: Path, offset: np.ndarray, ground: Ground, centr
             }
             if not valid and r["fp_reject_reason"]:
                 tree["rejectReason"] = r["fp_reject_reason"]
+            if tid in dbh_rings:
+                rings = ring_params(dbh_rings[tid], offset)
+                tree["dbhRings"] = rings
+                # The DBH ring sits at h* above the stem base (pipeline's breast-height section).
+                target_z = base[2] - offset[2] + h_star.get(tid, 1.3)
+                tree["dbhRingIndex"] = int(np.argmin([abs(rg["center"][2] - target_z) for rg in rings]))
 
             tdir = src / "trees" / str(tid)
             if (tdir / "thumbnail.png").exists():

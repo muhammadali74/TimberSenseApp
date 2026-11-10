@@ -188,9 +188,13 @@ interface Tree {
   crownRadiusM: number | null; stemTiltDeg: number | null;
   nnDistM: number | null; nnId: number | null; wellSpaced: boolean; thinRemove: boolean;
   qsmStatus: 'ok' | 'partial' | 'no_tree' | 'not_run'; nPoints: number;
+  dbhRings?: {center: [number, number, number]; normal: [number, number, number]; radiusM: number}[];
+  dbhRingIndex?: number;                                // ring at the measured DBH height
   thumbnail?: string; qsmMesh?: string;                 // relative paths
 }
 ```
+
+`dbhRings` (added during WS-C) reproduces the pipeline's `*_dbh_cylinders.ply`: 5 exact circles 5 cm apart around the fitted stem centre. The stem centre at DBH can differ from `base` by about 10 cm, so DBH overlays must use the rings, not `base`.
 
 ### 5.5 `trajectory.json` → `src/types/trajectory.ts`
 ```ts
@@ -380,7 +384,7 @@ Everything else starts once this is merged.
   - **Performance:** fps is only verified in headless software rendering. Confirm ≥ 45 fps on a real GPU with `?stats`.
   - **Not done:** a Web Worker loader isn't needed, because the streaming `fetch` already creates zero-copy views. GPU id-picking is left for WS-C if CPU picking proves slow.
 
-#### C — Tree interaction & markers
+#### C — Tree interaction & markers — ✅ done (`ws-c/tree-interaction`)
 - **Picking:** CPU raycast against per-tree proxy cylinders built from `trees.json` (base, top and crown radius), refined by the closest instance point. Optionally upgrade to GPU id-picking later. This keeps C independent of B's shader.
 - On hover, `hoverTree(id)` plus a small floating tooltip (ID, DBH, height). On click, `selectTree(id)` plus `requestCamera({kind:'focusTree'})`. Esc clears the selection.
 - `TreeMarkersLayer` for the selected tree:
@@ -391,6 +395,22 @@ Everything else starts once this is merged.
 - Optional labels for all trees (ID and DBH billboards) and a thinning overlay (red rings on trees flagged for removal, plus spacing-conflict lines).
 - `QsmMeshLayer`: loads the selected tree's `.glb` when `layers.qsm` is on.
 - **Done when** hover, click and Esc work on the sample, and markers match the CSV values.
+- **Delivered:**
+  - **Picking** (`trees/pick.ts`): a ray test against per-tree stem and crown capsules. Rejected instances are pickable too, and their tooltip shows the reject reason.
+  - **Hover:** a tooltip anchored at the tree top. It reads the store's `hoveredTreeId`, so hovering a sidebar row (WS-D) shows it too.
+  - **Click:** selects the tree, then focuses the camera after 260 ms. A double-click cancels the focus, so the WS-B pivot re-centre still works.
+  - **Deselect:** click empty space or press Esc.
+  - **Selected-tree markers:**
+    - DBH rings: the exact pipeline fit from `tree.dbhRings` (5 rings, 5 cm apart), drawn as dotted rings with 36 dots each. The ring at the measured DBH height is cyan with a matching label, and the rest are white. Dots are sized in metres with a 4 px minimum, and the far side of the stem is faded.
+    - height stick beside the stem, with 1 m ticks, end caps, a dashed link to the tree top and a label
+    - crown circle that follows the terrain
+    - base pin
+    - The pin, crown circle and stick are centred on the fitted stem axis projected to the ground, not on `base`, which can be about 10 cm off.
+  - **Overlays:**
+    - tree labels (ID + DBH)
+    - thinning plan: red rings plus "✕ id" labels on `thinRemove` trees, and amber links between trees closer than 2 m. Its toggle is local state in `trees/treesUi.ts`, not part of the store contract.
+    - QSM `.glb` of the selected tree, drawn as a semi-transparent overlay
+- **Verified in the browser:** a mouse sweep finds 35 trees, clicking selects the right tree, Esc and clicking empty space both deselect, and there are no console errors.
 
 #### D — Viewer sidebar & plot analytics
 - **No selection:** plot header (name, date, device, species chip), KPI grid (SPH, mean/QMD DBH, mean/max height, BA/ha, volume/ha, biomass, CO2e), DBH and height histograms (Recharts, from `trees.json`), a sortable and searchable tree table where clicking a row calls `selectTree` and `requestCamera`, and a rejected-instances accordion.
