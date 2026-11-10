@@ -1,0 +1,455 @@
+@import "tailwindcss";
+
+/* biome-ignore lint/suspicious/noUnknownAtRules: tailwind v4 dark variant */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* biome-ignore lint/suspicious/noUnknownAtRules: set theme tokens */
+@theme {
+  --font-poppins: Poppins, sans-serif;
+  --font-sans: Poppins, sans-serif;
+  --font-serif: Poppins, serif;
+
+  /* Semantic surface + text tokens — light defaults; .dark overrides below.
+     All consumers should use these via Tailwind arbitrary-value or var(). */
+  --color-app-bg: #ffffff;
+  --color-app-bg-alt: #f7fafc;
+  --color-surface: #ffffff;
+  --color-surface-2: #f7fafc;
+  --color-surface-3: #edf2f7;
+  --color-surface-hover: #e8ecef;
+  --color-fg: #0a0a0a;
+  --color-fg-muted: #6b7280;
+  --color-fg-subtle: #868d98;
+  --color-fg-inverse: #ffffff;
+  --color-border: #dbe4ec;
+  --color-border-strong: #cdd5dd;
+  --color-border-subtle: #edf2f7;
+  --color-brand: #2f9c5a;
+  --color-brand-hover: #3fae6a;
+  --color-brand-soft: #e6f4eb;
+  --color-brand-fg: #ffffff;
+  --color-success: #1e8c4d;
+  --color-success-soft: #e6f6ec;
+  --color-warning: #feb743;
+  --color-warning-soft: #fff4e0;
+  --color-danger: #e3412b;
+  --color-danger-soft: #fdecea;
+  --color-info: #2563eb;
+  --color-info-soft: #e6efff;
+
+  /* Forestry/Agri accent palette — distinct hues per vertical, both modes */
+  --color-forestry: #2f9c5a;
+  --color-forestry-soft: #e6f4eb;
+
+  /* Map control + scroll surfaces */
+  --color-map-control-bg: rgba(255, 255, 255, 0.92);
+  --color-map-control-fg: #0a0a0a;
+  --color-scroll-thumb: rgba(0, 0, 0, 0.2);
+  --color-scroll-thumb-hover: rgba(0, 0, 0, 0.35);
+  --color-shadow-soft: rgba(0, 0, 0, 0.08);
+  --color-shadow-strong: rgba(0, 0, 0, 0.2);
+}
+
+/* Dark theme overrides — applied when `.dark` is on <html> */
+.dark {
+  --color-app-bg: #0b0d12;
+  --color-app-bg-alt: #11141b;
+  --color-surface: #161a22;
+  --color-surface-2: #1c2129;
+  --color-surface-3: #242a35;
+  --color-surface-hover: #2c3340;
+  --color-fg: #e7e9ee;
+  --color-fg-muted: #a8aeb8;
+  --color-fg-subtle: #7c8390;
+  --color-fg-inverse: #0a0a0a;
+  --color-border: #2a3140;
+  --color-border-strong: #3a4252;
+  --color-border-subtle: #232936;
+  --color-brand: #4dd07a;
+  --color-brand-hover: #63d98b;
+  --color-brand-soft: #112a1c;
+  --color-brand-fg: #05210f;
+  --color-success: #3fe08a;
+  --color-success-soft: #103a23;
+  --color-warning: #ffcc66;
+  --color-warning-soft: #3a2e10;
+  --color-danger: #ff6a55;
+  --color-danger-soft: #3a1612;
+  --color-info: #6c9eff;
+  --color-info-soft: #11203f;
+
+  --color-forestry: #4dd07a;
+  --color-forestry-soft: #112a1c;
+
+  --color-map-control-bg: rgba(22, 26, 34, 0.92);
+  --color-map-control-fg: #e7e9ee;
+  --color-scroll-thumb: rgba(255, 255, 255, 0.18);
+  --color-scroll-thumb-hover: rgba(255, 255, 255, 0.32);
+  --color-shadow-soft: rgba(0, 0, 0, 0.45);
+  --color-shadow-strong: rgba(0, 0, 0, 0.65);
+
+  color-scheme: dark;
+}
+
+/* Forestry dashboard (FAR-721) — green gradient cards over a faintly gridded
+   ground, so the cards read as raised. Scoped to the dashboard; text keeps the
+   app-wide --color-fg* tokens. Chart series colours live in
+   dashboard/utils/dashboardPalette.ts because the OpenLayers map needs them as values. */
+.dashboard-theme {
+  --fd-bg: #edf3ee;
+  --fd-grid: rgba(20, 60, 35, 0.045);
+  --fd-glow: rgba(47, 156, 90, 0.1);
+  --fd-card-a: #ffffff;
+  --fd-card-b: #f3faf5;
+  --fd-card-c: #e6f3ea;
+  --fd-card-border: rgba(47, 156, 90, 0.22);
+  --fd-inset: #ffffff;
+  --fd-hover: #e2efe6;
+  --fd-line: rgba(20, 60, 35, 0.1);
+  --fd-line-strong: rgba(20, 60, 35, 0.2);
+  --fd-accent: #2f9c5a;
+  --fd-accent-soft: #dff1e6;
+  --fd-accent-ink: #1b6e3d;
+  --fd-on-accent: #ffffff;
+  --fd-ghost: rgba(20, 60, 35, 0.1);
+  --fd-shadow: 0 1px 2px rgba(20, 50, 30, 0.05), 0 14px 34px rgba(20, 50, 30, 0.08);
+  --font-fd-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+
+  color: var(--color-fg);
+  background:
+    radial-gradient(900px 380px at 50% -80px, var(--fd-glow), transparent 70%),
+    linear-gradient(var(--fd-grid) 1px, transparent 1px) 0 0 / 44px 44px,
+    linear-gradient(90deg, var(--fd-grid) 1px, transparent 1px) 0 0 / 44px 44px,
+    var(--fd-bg);
+}
+
+.dark .dashboard-theme {
+  --fd-bg: #0b100d;
+  --fd-grid: rgba(255, 255, 255, 0.028);
+  --fd-glow: rgba(77, 208, 122, 0.1);
+  --fd-card-a: #1d3a29;
+  --fd-card-b: #16261d;
+  --fd-card-c: #1a211c;
+  --fd-card-border: rgba(77, 208, 122, 0.2);
+  --fd-inset: rgba(255, 255, 255, 0.045);
+  --fd-hover: rgba(255, 255, 255, 0.08);
+  --fd-line: rgba(255, 255, 255, 0.08);
+  --fd-line-strong: rgba(255, 255, 255, 0.16);
+  --fd-accent: #4dd07a;
+  --fd-accent-soft: rgba(77, 208, 122, 0.14);
+  --fd-accent-ink: #5fdc8a;
+  --fd-on-accent: #05210f;
+  --fd-ghost: rgba(255, 255, 255, 0.08);
+  --fd-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+.fd-card {
+  background: linear-gradient(135deg, var(--fd-card-a) 0%, var(--fd-card-b) 46%, var(--fd-card-c) 100%);
+  border: 1px solid var(--fd-card-border);
+  border-radius: 24px;
+  box-shadow: var(--fd-shadow);
+}
+
+.fd-mono {
+  font-family: var(--font-fd-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.fd-skeleton {
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--fd-ghost), var(--fd-hover), var(--fd-ghost));
+  background-size: 200% 100%;
+  animation: fd-shimmer 1.2s linear infinite;
+}
+
+@keyframes fd-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fd-skeleton {
+    animation: none;
+  }
+}
+
+html,
+body {
+  background-color: var(--color-app-bg);
+  color: var(--color-fg);
+}
+
+/*
+  The default border color has changed to `currentColor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+}
+
+input[type="file"]::file-selector-button {
+  display: none;
+}
+
+input[type="file"]::-webkit-file-upload-button {
+  display: block;
+  width: 0;
+  height: 0;
+  margin-left: -100%;
+}
+
+input[type="file"]::-ms-browse {
+  display: none;
+}
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.app-shadow {
+  box-shadow: 0px 0px 20px 4px var(--color-shadow-strong);
+}
+.app-drop-shadow {
+  filter: drop-shadow(0px 0px 20px var(--color-shadow-strong));
+}
+
+.app-loader {
+  border: 12px solid var(--color-surface-3);
+  border-radius: 50%;
+  border-top: 12px solid var(--color-brand);
+  width: 120px;
+  height: 120px;
+  animation: app-loader-spin 2s linear infinite;
+  -webkit-animation: app-loader-spin 2s linear infinite; /* Safari */
+}
+
+.ol-control {
+  background-color: var(--color-map-control-bg);
+}
+.dark .ol-control button {
+  background-color: var(--color-surface-2);
+  color: var(--color-fg);
+}
+
+/* Mini-map (Overview Map) Styles */
+.ol-custom-overviewmap {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  width: 200px;
+  height: 150px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px var(--color-shadow-strong);
+  border: 2px solid var(--color-map-control-bg);
+  background: transparent;
+  z-index: 10;
+}
+
+.ol-custom-overviewmap .ol-overviewmap-map {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.ol-custom-overviewmap .ol-overviewmap-box {
+  border: 3px solid #ff4444;
+  background: rgba(255, 68, 68, 0.2);
+  box-shadow: 0 0 8px rgba(255, 68, 68, 0.5);
+}
+
+/* Make the mini-map slightly transparent when not actively being used */
+.ol-custom-overviewmap {
+  opacity: 0.9;
+  transition: opacity 0.3s ease;
+}
+
+.ol-custom-overviewmap:hover {
+  opacity: 1;
+}
+
+::-webkit-scrollbar {
+  width: 7px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-scroll-thumb);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-scroll-thumb-hover);
+}
+
+@keyframes app-loader-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+/* Safari */
+@-webkit-keyframes app-loader-spin {
+  0% {
+    -webkit-transform: rotate(0deg);
+  }
+  100% {
+    -webkit-transform: rotate(360deg);
+  }
+}
+
+/* Marquee (Shift+drag) detection selection box in edit mode.
+   The OL default .ol-dragbox is too faint over satellite imagery. */
+.marquee-select-box {
+  border: 1.5px dashed #f97316; /* orange accent, matches add-detection tooling */
+  background-color: rgba(249, 115, 22, 0.12);
+}
+
+.field-mini-map {
+  position: absolute;
+  bottom: 80px;
+  left: 16px;
+  width: 200px;
+  height: 150px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px var(--color-shadow-strong);
+  border: 2px solid var(--color-map-control-bg);
+  z-index: 10;
+  opacity: 0.9;
+  transition: opacity 0.3s ease;
+}
+
+/* PDF preview routes always render in light mode (export safety) */
+.force-light,
+.force-light * {
+  color-scheme: light;
+}
+.force-light {
+  --color-app-bg: #ffffff;
+  --color-app-bg-alt: #f7fafc;
+  --color-surface: #ffffff;
+  --color-surface-2: #f7fafc;
+  --color-surface-3: #edf2f7;
+  --color-fg: #0a0a0a;
+  --color-fg-muted: #6b7280;
+  --color-fg-subtle: #868d98;
+  --color-border: #dbe4ec;
+  --color-border-strong: #cdd5dd;
+  background-color: #ffffff;
+  color: #0a0a0a;
+}
+
+.field-mini-map:hover {
+  opacity: 1;
+}
+
+/* Adjust mini-map position when sidebar is hidden (full view) */
+.field-mini-map-full-view {
+  left: 50px;
+}
+
+/* Mobile bottom sheet animation */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+/* Hide scrollbar utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Thin, always-available horizontal scrollbar (used by the dashboard report chips) */
+.scrollbar-thin-x {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+.scrollbar-thin-x::-webkit-scrollbar {
+  height: 6px;
+}
+.scrollbar-thin-x::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin-x::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 999px;
+}
+.scrollbar-thin-x::-webkit-scrollbar-thumb:hover {
+  background: var(--color-fg-muted);
+}
+
+/* Mobile responsive adjustments for field mini-map */
+@media (max-width: 1023px) {
+  .field-mini-map {
+    width: 120px;
+    height: 90px;
+    bottom: 140px;
+    left: 8px;
+  }
+
+  .ol-custom-overviewmap {
+    width: 120px;
+    height: 90px;
+    bottom: 8px;
+    right: 8px;
+  }
+}
+
+/* ───────────────────────── TimberSense additions ───────────────────────── */
+/* biome-ignore lint/suspicious/noUnknownAtRules: tailwind v4 theme tokens */
+@theme {
+  /* Farmevo brand orange (sampled from the official logo) — used for the logo,
+     highlights and the selected-tree accent. Green (--color-brand) stays primary. */
+  --color-farmevo: #f57e26;
+  --color-farmevo-soft: #fdeee2;
+
+  /* Point-cloud semantic classes — same as the processing pipeline */
+  --color-class-ground: #89af46;
+  --color-class-wood: #865e3c;
+  --color-class-leaves: #63cf00;
+
+  /* Species */
+  --color-species-chir-pine: #2f9c5a;
+}
+
+.viewer-canvas-bg {
+  background: radial-gradient(120% 90% at 50% 10%, #2c3a4a 0%, #121820 60%, #0a0d12 100%);
+}
+
+.glass-panel {
+  background: var(--color-map-control-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--color-border-subtle);
+  box-shadow: 0 6px 24px var(--color-shadow-soft);
+}

@@ -1,0 +1,65 @@
+{
+ "version": 1,
+ "count": 300000,
+ "bbox": {
+  "min": [
+   -10.384,
+   -10.496,
+   -0.438
+  ],
+  "max": [
+   10.348,
+   10.489,
+   7.626
+  ]
+ },
+ "classes": {
+  "0": "ground",
+  "1": "wood",
+  "2": "leaves"
+ },
+ "attributes": [
+  {
+   "name": "position",
+   "type": "float32",
+   "size": 3,
+   "byteOffset": 0,
+   "byteLength": 3600000
+  },
+  {
+   "name": "color",
+   "type": "uint8",
+   "size": 3,
+   "byteOffset": 3600000,
+   "byteLength": 900000
+  },
+  {
+   "name": "semantic",
+   "type": "uint8",
+   "size": 1,
+   "byteOffset": 4500000,
+   "byteLength": 300000
+  },
+  {
+   "name": "instance",
+   "type": "uint16",
+   "size": 1,
+   "byteOffset": 4800000,
+   "byteLength": 600000
+  },
+  {
+   "name": "hag",
+   "type": "uint16",
+   "size": 1,
+   "byteOffset": 5400000,
+   "byteLength": 600000
+  },
+  {
+   "name": "tSeen",
+   "type": "uint16",
+   "size": 1,
+   "byteOffset": 6000000,
+   "byteLength": 600000
+  }
+ ]
+}

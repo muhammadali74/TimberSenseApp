@@ -1,0 +1,56 @@
+{
+ "id": "sample",
+ "name": "Plot FR-01 (sample)",
+ "captureDate": "2026-09-30T16:28:35+05:00",
+ "device": "TimberSense Backpack TS-01",
+ "operator": "Field crew A",
+ "species": [
+  "Chir pine"
+ ],
+ "geo": {
+  "lat": 33.8086,
+  "lon": 73.5237
+ },
+ "offset": [
+  -0.1102,
+  -3.0428,
+  18.484
+ ],
+ "files": {
+  "cloud": "cloud.json",
+  "trees": "trees.json",
+  "charts": {
+   "agreement_dbh": "media/agreement_dbh.png",
+   "agreement_height": "media/agreement_height.png",
+   "hist_dbh_cm": "media/hist_dbh_cm.png",
+   "hist_height_m": "media/hist_height_m.png",
+   "hist_volume_m3": "media/hist_volume_m3.png",
+   "plot_map": "media/plot_map.png"
+  },
+  "trajectory": "trajectory.json"
+ },
+ "summary": {
+  "plotAreaM2": 452.337615,
+  "nInstances": 40,
+  "nValidTrees": 29,
+  "nRejected": 11,
+  "stemsPerHa": 641.11405,
+  "dbhCmMean": 30.128093,
+  "dbhCmMedian": 28.872069,
+  "dbhCmMin": 18.465843,
+  "dbhCmMax": 42.238869,
+  "quadraticMeanDbhCm": 31.043678,
+  "heightMMean": 5.354578,
+  "heightMMax": 7.456996,
+  "basalAreaM2": 2.194999,
+  "basalAreaM2PerHa": 48.525669,
+  "woodVolumeM3": 6.0128,
+  "woodVolumeM3PerHa": 132.927261,
+  "biomassT": 3.0064,
+  "biomassTPerHa": 66.46363,
+  "carbonT": 1.5032,
+  "co2eT": 5.5122,
+  "nSpacingConflictTrees": 23,
+  "nThinningRemove": 12
+ }
+}

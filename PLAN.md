@@ -289,7 +289,7 @@ TimberSense_app/
 
 ## 7. Workstreams
 
-### Phase 0 — Foundation (blocking; 1 engineer, ~1–2 days)
+### Phase 0 — Foundation (blocking; 1 engineer, ~1–2 days) — ✅ done
 Everything else starts once this is merged.
 - Scaffold Vite + React 19 + TS + Tailwind 4 + Biome. Copy the SylvaSense theme tokens and the Poppins font.
 - Router with placeholder pages for every route in §3, a fake `AuthGuard`, and a `Layout`.
