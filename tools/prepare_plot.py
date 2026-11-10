@@ -41,7 +41,8 @@ TOOLS = Path(__file__).resolve().parent
 CLASS_NAMES = {0: "ground", 1: "wood", 2: "leaves"}
 SPECIES = "Chir pine"
 SENSOR_HEIGHT_M = 1.8
-REVEAL_RANGE_M = 15.0
+# Visual "capture" radius for the replay reveal (the lidar sees further; smaller reads better on screen).
+REVEAL_RANGE_M = 6.0
 T_SEEN_NEVER = 65535
 DTM_MAX_EDGE_M = 1.0
 
@@ -123,9 +124,11 @@ def write_glb(path: Path, positions: np.ndarray, indices: np.ndarray, colors: np
         attributes["NORMAL"] = add(np.ascontiguousarray(normals, "<f4").tobytes(), 34962,
                                    {"componentType": 5126, "count": len(normals), "type": "VEC3"})
     if colors is not None:
-        rgba = np.ascontiguousarray(np.column_stack([colors[:, :3], np.full(len(colors), 255)]), np.uint8)
-        attributes["COLOR_0"] = add(rgba.tobytes(), 34962,
-                                    {"componentType": 5121, "normalized": True, "count": len(rgba), "type": "VEC4"})
+        # glTF COLOR_0 is linear; inputs are sRGB uint8 → linear float32.
+        c = colors[:, :3].astype(np.float64) / 255.0
+        lin = np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+        rgb = np.ascontiguousarray(lin, "<f4")
+        attributes["COLOR_0"] = add(rgb.tobytes(), 34962, {"componentType": 5126, "count": len(rgb), "type": "VEC3"})
     idx = add(indices.tobytes(), 34963, {"componentType": 5125, "count": len(indices), "type": "SCALAR"})
 
     gltf = {
@@ -360,6 +363,8 @@ def compute_t_seen(pos: np.ndarray, samples: np.ndarray, step_s: float = 0.5) ->
         hit = d2 <= r2
         t_seen[unseen[hit]] = min(int(round(t * 10)), T_SEEN_NEVER - 1)
         unseen = unseen[~hit]
+    # Points never within range appear at the end, so a finished replay shows the complete cloud.
+    t_seen[unseen] = min(int(round(samples[-1, 0] * 10)), T_SEEN_NEVER - 1)
     return t_seen
 
 
@@ -449,7 +454,11 @@ def export_trees(out: Path, src: Path, offset: np.ndarray, ground: Ground, centr
     return trees
 
 
-def export_dtm(out: Path, dtm_xyz: np.ndarray, offset: np.ndarray, seed: int) -> None:
+def export_dtm(out: Path, dtm_xyz: np.ndarray, offset: np.ndarray, seed: int, ground_xy: np.ndarray) -> None:
+    # *_dtm_complete is extrapolated beyond the scan; keep only vertices near real ground points.
+    near, _ = cKDTree(ground_xy[:: max(1, len(ground_xy) // 400_000)]).query(dtm_xyz[:, :2],
+                                                                             distance_upper_bound=0.6)
+    dtm_xyz = dtm_xyz[np.isfinite(near)]
     tri = Delaunay(dtm_xyz[:, :2]).simplices
     p = dtm_xyz[tri]
     edge = np.max([np.linalg.norm(p[:, i, :2] - p[:, (i + 1) % 3, :2], axis=1) for i in range(3)], axis=0)
@@ -547,6 +556,7 @@ def main(argv=None) -> None:
     n_all = len(a)
 
     gmask = sem == 0
+    ground_xy_all = xyz[gmask, :2].copy()
     dtm_xyz = load_dtm_points(src, xyz[gmask])
     ground = Ground(dtm_xyz)
     offset = np.array([(xyz[:, 0].min() + xyz[:, 0].max()) / 2, (xyz[:, 1].min() + xyz[:, 1].max()) / 2,
@@ -597,7 +607,7 @@ def main(argv=None) -> None:
     export_cloud(out, pos, color, sem, inst, hag, t_seen)
     log(f"cloud.bin: {(out / 'cloud.bin').stat().st_size / 1e6:.1f} MB")
 
-    export_dtm(out, dtm_xyz, offset, args.seed)
+    export_dtm(out, dtm_xyz, offset, args.seed, ground_xy_all)
 
     charts = {}
     for png in sorted((src / "visuals").glob("*.png")):

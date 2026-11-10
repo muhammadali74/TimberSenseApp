@@ -174,7 +174,7 @@ interface CloudHeader {
 | semantic | uint8 | 0 ground, 1 wood, 2 leaves |
 | instance | uint16 | tree id, 0 = none |
 | hag | uint16 | height above ground in cm |
-| tSeen | uint16 | first time, in 0.1 s steps since the trajectory starts, that the point was within 15 m of the sensor. 65535 = never. Drives the "live capture" reveal. |
+| tSeen | uint16 | first time, in 0.1 s steps since the trajectory starts, that the point was within 6 m of the sensor (a visual capture radius). Points never in range get the trajectory end time, so a finished replay shows the whole cloud. 65535 = never (only if there's no trajectory). Drives the "live capture" reveal. |
 
 ### 5.4 `trees.json` → `src/types/tree.ts`
 ```ts
@@ -348,7 +348,7 @@ Everything else starts once this is merged.
   - **WS-E:** the video is variable frame rate (about 14.5 fps average, 120.4 s) and was re-encoded at a constant 15 fps. Duration matches `traj.csv` (119.3 s), so `videoOffsetS = 0` is a good default.
   - **Not yet done:** `--lod` octree for clouds over 8M points. Not needed until a larger plot arrives.
 
-#### B — Viewer rendering core
+#### B — Viewer rendering core — ✅ done (`ws-b/rendering`)
 - Binary loader using a Web Worker and transferable buffers, with a `BufferGeometry` per attribute.
 - Point `ShaderMaterial` with all colour modes and all §5.8 uniforms:
   - highlight: brighten and outline-tint the hovered or selected instance, and desaturate and darken the others when `dimOthers` is on
@@ -357,6 +357,28 @@ Everything else starts once this is merged.
 - `CameraController`: orbit around the plot centre with damping, walk mode (WASD, eye height 1.7 m, terrain-following via the DTM), reset/top/side views, and `cameraRequest` handling (smooth focus on a tree).
 - Left `ViewerToolbar`: colour mode, render settings popover, layer toggles, camera modes, and slots for the other workstreams.
 - **Done when** the full 5.7M-point plot renders at ≥ 45 fps on a mid-range GPU, with EDL on and every colour mode working against the sample.
+- **Delivered:**
+  - **Point shader** (`shaders/points.ts`) supporting every colour mode and §5.8 uniform:
+    - Natural, Tree ID, Class, Height above ground, and Tree metric (DBH, height or volume)
+    - hover: orange tint plus larger points
+    - selection: warm tint, with the other trees dimmed
+    - live-capture reveal with a cyan glow on the scan front
+    - round, adaptive-size points
+  - **Composite pass** (`EdlPass`): renders the scene into a float target with a depth texture, then applies Potree-style EDL, soft sun shading from screen-space normals, the sky/dark/light background gradient, distance haze, and sRGB output.
+  - **Camera** (`CameraController`): orbit with damping; double-click a point to re-centre the pivot (CloudCompare-style); reset, top and side views; eased focus on a tree. Walk mode (`WalkControls`): WASD, drag to look, Shift to run, Esc back to orbit, following the terrain at 1.7 m eye height.
+  - **Ground mesh** (`DtmLayer`), plus hemisphere and sun lights.
+  - **Toolbar:** colour-mode popover, rendering popover (EDL, point size, sun, DTM, background), camera modes and view presets. Also a colour legend (bottom-left) and a walk-mode hint.
+- **Shared helpers other workstreams can import (read-only):**
+  - `core/ground.ts` (`useGround().heightAt(x, y)`)
+  - `core/ToolbarButton.tsx` (`ToolbarButton`, `ToolbarDivider`)
+  - `core/controls.tsx` (`Slider`, `Switch`, `Segmented`, `Field`)
+  - `core/colors.ts`, `EYE_HEIGHT_M`, `homePose()`, `sunDirectionWorld()`
+- **Notes:**
+  - **Colour pipeline:** everything renders linear into the EDL target. Custom materials should output linear colour.
+  - **EDL:** background neighbours give a small fixed response instead of Potree's "infinitely far" rule, which turned sparse clouds black.
+  - **Debugging:** `?stats` shows an FPS meter, and `window.__viewerStore` is available in dev builds only.
+  - **Performance:** fps is only verified in headless software rendering. Confirm ≥ 45 fps on a real GPU with `?stats`.
+  - **Not done:** a Web Worker loader isn't needed, because the streaming `fetch` already creates zero-copy views. GPU id-picking is left for WS-C if CPU picking proves slow.
 
 #### C — Tree interaction & markers
 - **Picking:** CPU raycast against per-tree proxy cylinders built from `trees.json` (base, top and crown radius), refined by the closest instance point. Optionally upgrade to GPU id-picking later. This keeps C independent of B's shader.
