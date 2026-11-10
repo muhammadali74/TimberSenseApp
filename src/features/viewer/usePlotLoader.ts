@@ -7,10 +7,24 @@ export type LoadState =
   | {status: 'error'; error: string}
   | {status: 'ready'; data: PlotData};
 
+/**
+ * The most recently loaded plot stays in memory, so re-mounting the viewer (e.g. after a units
+ * change, or navigating back to the same plot) is instant. Only one plot is kept to bound memory.
+ */
+let lastLoaded: PlotData | null = null;
+
 export function usePlotLoader(plotDir: string): LoadState {
-  const [state, setState] = useState<LoadState>({status: 'loading', stage: 'Reading manifest', progress: 0});
+  const [state, setState] = useState<LoadState>(() =>
+    lastLoaded?.plotDir === plotDir
+      ? {status: 'ready', data: lastLoaded}
+      : {status: 'loading', stage: 'Reading manifest', progress: 0},
+  );
 
   useEffect(() => {
+    if (lastLoaded?.plotDir === plotDir) {
+      setState({status: 'ready', data: lastLoaded});
+      return;
+    }
     let cancelled = false;
     const update = (s: LoadState) => !cancelled && setState(s);
     (async () => {
@@ -29,10 +43,16 @@ export function usePlotLoader(plotDir: string): LoadState {
             progress: total ? 0.05 + 0.95 * (loaded / total) : 0.5,
           }),
         );
-        update({
-          status: 'ready',
-          data: {plotDir, manifest, cloud, trees, trajectory, treesById: new Map(trees.map((t) => [t.id, t]))},
-        });
+        const data: PlotData = {
+          plotDir,
+          manifest,
+          cloud,
+          trees,
+          trajectory,
+          treesById: new Map(trees.map((t) => [t.id, t])),
+        };
+        lastLoaded = data;
+        update({status: 'ready', data});
       } catch (e) {
         update({status: 'error', error: e instanceof Error ? e.message : String(e)});
       }

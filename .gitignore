@@ -24,3 +24,6 @@ __pycache__/
 .DS_Store
 .idea/
 .vscode/
+
+# Local archives (e.g. testdata.zip) — never commit
+*.zip
