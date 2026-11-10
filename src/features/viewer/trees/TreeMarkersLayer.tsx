@@ -9,11 +9,12 @@ import {useThree} from '@react-three/fiber';
 import {useMemo} from 'react';
 import * as THREE from 'three';
 import {fmtDbh, fmtHeight} from '@/lib/format';
-import {BREAST_HEIGHT_M, type Tree} from '@/types';
+import type {Tree} from '@/types';
 import {HIGHLIGHT_COLOR} from '../core/colors';
 import {type GroundSampler, useGround} from '../core/ground';
 import {usePlotData} from '../PlotDataContext';
 import {useViewerStore} from '../store';
+import {DbhRings} from './DbhRings';
 import {MeasureLabel} from './MeasureLabel';
 import {useTreesUi} from './treesUi';
 
@@ -31,21 +32,31 @@ function groundCircle(ground: GroundSampler, cx: number, cy: number, r: number, 
   return pts;
 }
 
+/**
+ * Stem position on the ground. The pipeline's `base` can sit ~10 cm off the stem, so when a DBH fit
+ * exists, project the fitted stem axis (lowest ring centre along its normal) down to the base height.
+ */
+function stemBase(tree: Tree): THREE.Vector3 {
+  const base = new THREE.Vector3(...tree.base);
+  const ring = tree.dbhRings?.[0];
+  if (!ring) return base;
+  const c = new THREE.Vector3(...ring.center);
+  const n = new THREE.Vector3(...ring.normal).normalize();
+  if (n.z < 0.5) return base;
+  return c.addScaledVector(n, (base.z - c.z) / n.z);
+}
+
 function SelectedTreeMarkers({tree}: {tree: Tree}) {
   const camera = useThree((s) => s.camera);
+  const dpr = useThree((s) => s.viewport.dpr);
   const ground = useGround();
 
   // The camera is read once per selection so the height stick doesn't swing around while orbiting.
   // biome-ignore lint/correctness/useExhaustiveDependencies: stick side fixed when the tree is selected
   const geo = useMemo(() => {
-    const base = new THREE.Vector3(...tree.base);
+    const base = stemBase(tree);
     const top = new THREE.Vector3(...tree.top);
-    const axis = top.clone().sub(base);
-    if (axis.lengthSq() < 0.01) axis.set(0, 0, 1);
-    axis.normalize();
     const radius = (tree.dbhCm ?? 20) / 200;
-    const dbhPos = base.clone().addScaledVector(axis, BREAST_HEIGHT_M / Math.max(axis.z, 0.3));
-    const ringQuat = new THREE.Quaternion().setFromUnitVectors(UP, axis);
     // Height stick sits beside the stem, on the side facing the camera at selection time.
     const toCam = camera.position.clone().sub(base).setZ(0);
     if (toCam.lengthSq() < 1e-6) toCam.set(1, 0, 0);
@@ -63,38 +74,20 @@ function SelectedTreeMarkers({tree}: {tree: Tree}) {
       const p = s0.clone().setZ(base.z + m);
       ticks.push([p.clone().addScaledVector(side, -0.1), p.clone().addScaledVector(side, 0.1)]);
     }
-    return {base, top, radius, dbhPos, ringQuat, s0, s1, ticks, height, side};
+    return {base, top, radius, s0, s1, ticks, height, side};
   }, [tree]);
 
   const crown = useMemo(
-    () => (tree.crownRadiusM ? groundCircle(ground, tree.base[0], tree.base[1], tree.crownRadiusM) : null),
-    [ground, tree],
+    () => (tree.crownRadiusM ? groundCircle(ground, geo.base.x, geo.base.y, tree.crownRadiusM) : null),
+    [ground, tree, geo],
   );
 
-  const ringR = geo.radius + 0.035;
   const capW = 0.22;
 
   return (
     <group>
-      {/* DBH ring — solid where visible, faint x-ray where hidden behind the stem */}
-      <mesh position={geo.dbhPos} quaternion={geo.ringQuat} renderOrder={10}>
-        <torusGeometry args={[ringR, 0.02, 10, 64]} />
-        <meshBasicMaterial color={HIGHLIGHT_COLOR} />
-      </mesh>
-      <mesh position={geo.dbhPos} quaternion={geo.ringQuat} renderOrder={11}>
-        <torusGeometry args={[ringR, 0.012, 8, 64]} />
-        <meshBasicMaterial color={HIGHLIGHT_COLOR} transparent opacity={0.35} depthTest={false} depthWrite={false} />
-      </mesh>
-      <MeasureLabel
-        position={
-          geo.dbhPos
-            .clone()
-            .addScaledVector(geo.side, -(ringR + 0.55))
-            .toArray() as [number, number, number]
-        }
-      >
-        DBH {fmtDbh(tree.dbhCm)}
-      </MeasureLabel>
+      {/* DBH rings — exact pipeline fit, dotted; the DBH-height ring in orange */}
+      <DbhRings tree={tree} side={geo.side} pixelRatio={dpr} />
 
       {/* Height stick */}
       {geo.height > 0 && (

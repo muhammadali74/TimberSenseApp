@@ -188,9 +188,13 @@ interface Tree {
   crownRadiusM: number | null; stemTiltDeg: number | null;
   nnDistM: number | null; nnId: number | null; wellSpaced: boolean; thinRemove: boolean;
   qsmStatus: 'ok' | 'partial' | 'no_tree' | 'not_run'; nPoints: number;
+  dbhRings?: {center: [number, number, number]; normal: [number, number, number]; radiusM: number}[];
+  dbhRingIndex?: number;                                // ring at the measured DBH height
   thumbnail?: string; qsmMesh?: string;                 // relative paths
 }
 ```
+
+`dbhRings` (added during WS-C) reproduces the pipeline's `*_dbh_cylinders.ply`: 5 exact circles 5 cm apart around the fitted stem centre. The stem centre at DBH can differ from `base` by about 10 cm, so DBH overlays must use the rings, not `base`.
 
 ### 5.5 `trajectory.json` → `src/types/trajectory.ts`
 ```ts
@@ -397,10 +401,11 @@ Everything else starts once this is merged.
   - **Click:** selects the tree, then focuses the camera after 260 ms. A double-click cancels the focus, so the WS-B pivot re-centre still works.
   - **Deselect:** click empty space or press Esc.
   - **Selected-tree markers:**
-    - DBH ring at 1.3 m along the stem axis, with an x-ray copy behind the stem and a label
+    - DBH rings: the exact pipeline fit from `tree.dbhRings` (5 rings, 5 cm apart), drawn as dotted rings with 36 dots each. The ring at the measured DBH height is cyan with a matching label, and the rest are white. Dots are sized in metres with a 4 px minimum, and the far side of the stem is faded.
     - height stick beside the stem, with 1 m ticks, end caps, a dashed link to the tree top and a label
     - crown circle that follows the terrain
     - base pin
+    - The pin, crown circle and stick are centred on the fitted stem axis projected to the ground, not on `base`, which can be about 10 cm off.
   - **Overlays:**
     - tree labels (ID + DBH)
     - thinning plan: red rings plus "✕ id" labels on `thinRemove` trees, and amber links between trees closer than 2 m. Its toggle is local state in `trees/treesUi.ts`, not part of the store contract.

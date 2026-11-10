@@ -11,7 +11,7 @@ export function MeasureLabel({
 }: {
   position: [number, number, number];
   children: ReactNode;
-  tone?: 'accent' | 'dark' | 'light' | 'danger';
+  tone?: 'accent' | 'dark' | 'light' | 'danger' | 'dbh';
   className?: string;
 }) {
   return (
@@ -23,6 +23,7 @@ export function MeasureLabel({
           tone === 'dark' && 'bg-fg/85 text-white',
           tone === 'light' && 'bg-white/90 text-fg',
           tone === 'danger' && 'bg-danger text-white',
+          tone === 'dbh' && 'bg-[#22d3ee] text-[#06303a]',
           className,
         )}
       >

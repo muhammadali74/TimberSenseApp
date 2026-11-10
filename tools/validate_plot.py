@@ -135,6 +135,14 @@ def validate(plot_dir: Path) -> Report:
                         f"trees.json[{tid}]: valid tree without dbhCm/heightM")
             elif not t.get("rejectReason"):
                 r.warn(f"trees.json[{tid}]: rejected tree without rejectReason")
+            rings = t.get("dbhRings")
+            if rings is not None:
+                ok = isinstance(rings, list) and all(
+                    len(rg.get("center", [])) == 3 and len(rg.get("normal", [])) == 3 and rg.get("radiusM", 0) > 0
+                    for rg in rings)
+                r.check(ok, f"trees.json[{tid}]: malformed dbhRings")
+                r.check(isinstance(t.get("dbhRingIndex"), int) and 0 <= t["dbhRingIndex"] < len(rings),
+                        f"trees.json[{tid}]: dbhRingIndex out of range")
             for k in ("thumbnail", "qsmMesh"):
                 if t.get(k):
                     exists(t[k], f"trees.json[{tid}].{k}")

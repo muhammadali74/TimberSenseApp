@@ -33,10 +33,23 @@ export interface Tree {
   thinRemove: boolean;
   qsmStatus: QsmStatus;
   nPoints: number;
+  /**
+   * DBH fit rings from the pipeline (`*_dbh_cylinders.ply`), bottom → top, in the plot frame.
+   * Exact circles: centre, unit plane normal, radius. Absent when no DBH fit exists.
+   */
+  dbhRings?: DbhRing[];
+  /** Index into `dbhRings` of the ring at the measured DBH height (≈1.3 m). */
+  dbhRingIndex?: number;
   /** Relative to the plot directory. */
   thumbnail?: string;
   /** Relative to the plot directory. */
   qsmMesh?: string;
+}
+
+export interface DbhRing {
+  center: [number, number, number];
+  normal: [number, number, number];
+  radiusM: number;
 }
 
 /** DBH is measured at breast height: 1.3 m above the stem base. */
