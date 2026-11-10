@@ -1,0 +1,28 @@
+# Raw capture/pipeline data (large) — kept locally, not in git
+testdata/
+*.ply
+*.las
+*.laz
+*.mp4
+
+# Node / build
+node_modules/
+dist/
+.vite/
+*.log
+
+# Generated web-ready assets
+public/data/plots/**/*.bin
+public/data/plots/**/*.mp4
+# ...except the small committed sample plot used by every workstream
+!public/data/plots/sample/
+!public/data/plots/sample/**
+
+# Python
+__pycache__/
+.venv/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
