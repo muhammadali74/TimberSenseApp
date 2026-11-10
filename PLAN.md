@@ -465,7 +465,7 @@ Everything else starts once this is merged.
   - `viewer/usePlotLoader.ts`: keeps the most recently loaded plot in memory, so re-mounting the page after a units change is instant
   - `index.css`: dark-mode values for the Farmevo orange tokens
 
-#### H — Maps, catalog & drill-down
+#### H — Maps, catalog & drill-down — ✅ done (`ws-h/maps`, branched from `ws-g/shell`)
 - **Catalog data:** the full `catalog.ts`.
   - "Kotli Sattian Pine Cruise" (Murree Hills, Punjab, Pakistan, around 33.81° N, 73.52° E; confirm the plot's GPS): 6–8 block polygons and about 20 plots, with `fariy_1_test` as the real one and the rest generated with plausible Chir pine numbers.
   - 3 BC dummy projects (Southern Interior, Cariboo, Kootenay): 4–10 blocks each, with blocks and plots generated from a seeded random generator.
@@ -475,6 +475,27 @@ Everything else starts once this is merged.
 - **Block page (§3.5):** plot markers (real plots highlighted), hover tooltip, and a side card with the plot thumbnail and "Open 3D Viewer".
 - Breadcrumb component shared with the viewer top bar.
 - **Done when** you can click from the world view → Kotli Sattian → block → plot → viewer, with animated transitions.
+- **Delivered:**
+  - **Catalog** (`src/data/catalog.ts` + `generate.ts`, all seeded and deterministic):
+    - Kotli Sattian: 7 blocks, 35.5 ha, 128 plots on a 50 m systematic grid. KS-B01 holds the real FR-01 plot and the 300k quick-preview plot.
+    - Okanagan, Cariboo and Kootenay: 15 blocks, 139 plots on a 100 m grid, with species-specific stand profiles. Centres are placed on forested ground with cutblocks.
+  - **Map:** OpenLayers with Esri World Imagery plus a boundaries and places layer (`features/map/olBase.ts`), and shared styles, controls, hover cards and breadcrumbs.
+  - **Home:**
+    - numbered block clusters that become status-coloured, labelled polygons at zoom 12+
+    - hover tooltips (status counts, block names); click to select a project or zoom into a cluster
+    - left projects list filtered by the header region (selecting a region flies the map there)
+    - right project panel (area, stocking vs target, BA, volume, CO₂e, progress, species, Project summary / Cruise report / Export KML / View project); `?project=<id>` deep-links the selection
+  - **Project page:**
+    - block polygons coloured by status, stems/ha, basal area, volume or progress, with a legend
+    - sidebar with targets, species and a block list linked to the map by hover
+    - plot dots at zoom 15+; hover tooltip with block figures; click opens the block
+  - **Block page:**
+    - yellow block outline (SylvaSense style), true-size plot circles plus numbered markers; real 3D plots in Farmevo orange
+    - sidebar with stocking status vs target, targets, species, figures and the plot list
+    - plot card with a preview image (camera poster frame), figures and **Open 3D viewer**
+  - **`/projects`:** list view with status filter and search.
+  - **Summary slots for WS-I:** `projects/summary/ProjectSummary.tsx` and `blocks/summary/BlockSummary.tsx` are placeholders. They're rendered in a `SummaryOverlay` over the map when `?tab=summary` is set.
+- **Merge order:** H was branched from `ws-g/shell`, because it uses the shell's region store, toasts and `PageLayout`. Merge G into `dev` before H.
 
 #### I — Summaries & dashboard
 - **Project Summary and Block Summary tabs:** KPI cards, DBH-class stand table (5 cm classes), species donut, volume/BA by block, a per-plot table, and Export CSV (working) and PDF (stub, or `jspdf` if time allows).
