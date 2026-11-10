@@ -11,12 +11,10 @@ dist/
 .vite/
 *.log
 
-# Generated web-ready assets
-public/data/plots/**/*.bin
-public/data/plots/**/*.mp4
+# Generated web-ready plot exports (tools/prepare_plot.py) — regenerate locally
+public/data/plots/*
 # ...except the small committed sample plot used by every workstream
 !public/data/plots/sample/
-!public/data/plots/sample/**
 
 # Python
 __pycache__/

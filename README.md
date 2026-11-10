@@ -15,7 +15,7 @@ npm run dev            # http://localhost:5173
 
 Log in with **`demo@farmevo.ai` / `timbersense`**.
 
-Python tooling (data prep) needs `python3` with `numpy` and `Pillow`. `scipy` is optional.
+Python tooling (data prep) needs `python3` with `numpy`, `scipy` and `Pillow`, plus `ffmpeg` for video.
 
 ## Scripts
 
@@ -25,13 +25,16 @@ Python tooling (data prep) needs `python3` with `numpy` and `Pillow`. `scipy` is
 | `npm run build` | Type-check and production build to `dist/` |
 | `npm run check` | `tsc` + Biome. **Must pass before every PR.** |
 | `npm run lint` | Biome with autofix |
-| `npm run sample` | Regenerate `public/data/plots/sample/` from `testdata/fariy_1_test` |
+| `npm run plot:export` | Full export of `testdata/fariy_1_test` → `public/data/plots/fariy_1_test/` (~10 s, plus ~2 min the first time for video) |
+| `npm run sample` | Regenerate the committed 300k-point `public/data/plots/sample/` |
+| `npm run plot:validate` | Check every plot in `public/data/plots/` against the §5 contracts |
 
 ## Plot data
 
 - `public/data/plots/<plotId>/` holds the web-ready plot files in the §5 formats: `plot.json`, `cloud.json`/`cloud.bin`, `trees.json`, `trajectory.json` and `media/`.
 - **`sample/`** (300k points) is committed, so every workstream can develop without the raw data.
-- Full plots such as `fariy_1_test` are generated locally (WS-A, `tools/prepare_plot.py`) and are git-ignored.
+- Full plots such as `fariy_1_test` are generated locally with `npm run plot:export` and are git-ignored (about 330 MB including video).
+- New plots: `python3 tools/prepare_plot.py <pipeline_output_dir> public/data/plots/<id> --name "…" --geo lat,lon`, then add a `PlotRef` with `dataPath: '/data/plots/<id>'` to `src/data/catalog.ts`.
 - Raw pipeline output lives in `testdata/` (git-ignored, about 3 GB).
 
 Open the sample viewer at `/projects/kotli-sattian/blocks/ks-b01/plots/sample`.

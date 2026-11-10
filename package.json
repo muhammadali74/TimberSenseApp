@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "check": "tsc -b --noEmit && biome check src/",
     "lint": "biome check src/ --write",
-    "sample": "python3 tools/make_sample.py testdata/fariy_1_test public/data/plots/sample"
+    "sample": "python3 tools/make_sample.py testdata/fariy_1_test public/data/plots/sample",
+    "plot:export": "python3 tools/prepare_plot.py testdata/fariy_1_test public/data/plots/fariy_1_test",
+    "plot:validate": "python3 tools/validate_plot.py"
   },
   "dependencies": {
     "@headlessui/react": "~2.2.9",

@@ -9,7 +9,41 @@
  ],
  "geo": {
   "lat": 33.8086,
-  "lon": 73.5237
+  "lon": 73.5237,
+  "boundary": [
+   [
+    73.5235834,
+    33.8086944
+   ],
+   [
+    73.5235834,
+    33.8085041
+   ],
+   [
+    73.5235972,
+    33.8085021
+   ],
+   [
+    73.5238056,
+    33.8085021
+   ],
+   [
+    73.5238126,
+    33.808506
+   ],
+   [
+    73.5238126,
+    33.8086924
+   ],
+   [
+    73.5237061,
+    33.8086944
+   ],
+   [
+    73.5235834,
+    33.8086944
+   ]
+  ]
  },
  "offset": [
   -0.1102,
@@ -19,6 +53,8 @@
  "files": {
   "cloud": "cloud.json",
   "trees": "trees.json",
+  "dtm": "dtm.glb",
+  "trajectory": "trajectory.json",
   "charts": {
    "agreement_dbh": "media/agreement_dbh.png",
    "agreement_height": "media/agreement_height.png",
@@ -26,8 +62,7 @@
    "hist_height_m": "media/hist_height_m.png",
    "hist_volume_m3": "media/hist_volume_m3.png",
    "plot_map": "media/plot_map.png"
-  },
-  "trajectory": "trajectory.json"
+  }
  },
  "summary": {
   "plotAreaM2": 452.337615,

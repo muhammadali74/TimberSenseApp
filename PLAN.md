@@ -316,7 +316,7 @@ Everything else starts once this is merged.
 | H | Maps, catalog & drill-down | `map/`, `projects/`, `blocks/`, `data/catalog.ts` | §5.2, 5.6 | L |
 | I | Summaries & dashboard | `*/summary/`, `dashboard/` | §5.6 aggregation | M |
 
-#### A — Data pipeline (Python)
+#### A — Data pipeline (Python) — ✅ done (`ws-a/prepare-plot`)
 - `tools/prepare_plot.py <input_dir> <plot_id>` writes all of §5 for one plot. It must be idempotent and reusable for future plots.
 - **Synthetic natural RGB:**
   - ground: grass/soil mix, varied by slope and noise
@@ -333,6 +333,20 @@ Everything else starts once this is merged.
 - **Charts:** PNGs copied, with keys added to the manifest.
 - **Later:** a `--lod` octree for clouds over 8M points.
 - **Done when** `fariy_1_test` is exported to `public/data/plots/fariy_1_test/` and a schema check script (`tools/validate_plot.py`) passes.
+- **Delivered:**
+  - `tools/prepare_plot.py`: full export of `fariy_1_test` in about 10 s (5.68M points, 125 MB `cloud.bin`)
+  - `tools/make_sample.py`: now a wrapper around it (300k points, no video)
+  - `tools/transcode.sh`: H.264 at 1080p (134 MB) and 720p (67 MB) with 1 s keyframes, plus a poster frame. The manifest points at the 720p file.
+  - `tools/validate_plot.py`: checks plots against the §5 contracts
+- **Notes for other workstreams:**
+  - **HAG** comes from the pipeline's `*_hag.ply`.
+  - **DTM:** `dtm.glb` is a Delaunay mesh of `*_dtm_complete.ply`, with `COLOR_0` and `NORMAL` attributes.
+  - **QSM meshes:** `media/qsm/<id>.glb` files in the plot frame, for 28 trees. Tree 278 has no QSM.
+  - **Rejected instances:** placed at their point centroid on the DTM, so all 40 trees appear in `trees.json`.
+  - **`plot.json` boundary:** `geo.boundary` is the convex hull of the DTM, assuming plot X = east and Y = north. There's no GPS heading yet.
+  - **WS-B:** vertex colours are **sRGB**. Convert them to linear in the shader, or the cloud looks washed out.
+  - **WS-E:** the video is variable frame rate (about 14.5 fps average, 120.4 s) and was re-encoded at a constant 15 fps. Duration matches `traj.csv` (119.3 s), so `videoOffsetS = 0` is a good default.
+  - **Not yet done:** `--lod` octree for clouds over 8M points. Not needed until a larger plot arrives.
 
 #### B — Viewer rendering core
 - Binary loader using a Web Worker and transferable buffers, with a `BufferGeometry` per attribute.
