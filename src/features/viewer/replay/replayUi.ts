@@ -11,8 +11,9 @@ export interface Calibration {
   timeOffsetS: number;
   headingOffsetDeg: number;
   pitchDeg: number;
-  /** Horizontal field of view of the front camera. */
-  hfovDeg: number;
+  /** Horizontal / vertical FOV overrides in degrees; null = use the plot's camera.json. */
+  hfovDeg: number | null;
+  vfovDeg: number | null;
   heightOffsetM: number;
 }
 
@@ -20,7 +21,8 @@ export const DEFAULT_CALIBRATION: Calibration = {
   timeOffsetS: 0,
   headingOffsetDeg: 0,
   pitchDeg: -6,
-  hfovDeg: 95,
+  hfovDeg: null,
+  vfovDeg: null,
   heightOffsetM: 0,
 };
 
@@ -39,6 +41,8 @@ interface ReplayUiState {
   pipCamera: CameraPosition;
   /** Free-look offset added to the walking direction (radians); eases back to 0 while playing. */
   look: {yaw: number; pitch: number};
+  /** Outline of the video's frame over the first-person 3D view. */
+  showFrame: boolean;
   /** Set by CameraFeeds: what is actually playing, for display. */
   activeRendition: string | null;
 
@@ -50,9 +54,11 @@ interface ReplayUiState {
     patch: Partial<Pick<ReplayUiState, 'pipVisible' | 'pipSize' | 'pipCorner' | 'pipExpanded' | 'pipCamera'>>,
   ) => void;
   setActiveRendition: (label: string | null) => void;
+  setShowFrame: (v: boolean) => void;
 }
 
-const key = (plotId: string) => `timbersense.replay.calibration.${plotId}`;
+// v2: FOV comes from camera.json — calibrations saved before that (single 95° hfov) are ignored.
+const key = (plotId: string) => `timbersense.replay.calibration.v2.${plotId}`;
 
 function readCalibration(plotId: string): Calibration {
   try {
@@ -84,6 +90,7 @@ export const useReplayUi = create<ReplayUiState>()((set, get) => ({
   pipCamera: 'front',
   look: {yaw: 0, pitch: 0},
   activeRendition: null,
+  showFrame: true,
 
   loadForPlot: (plotId) => set({plotId, calibration: readCalibration(plotId), look: {yaw: 0, pitch: 0}}),
   setCalibration: (patch) => {
@@ -98,4 +105,5 @@ export const useReplayUi = create<ReplayUiState>()((set, get) => ({
   setQuality: (quality) => set({quality}),
   setPip: (patch) => set(patch),
   setActiveRendition: (activeRendition) => set({activeRendition}),
+  setShowFrame: (showFrame) => set({showFrame}),
 }));

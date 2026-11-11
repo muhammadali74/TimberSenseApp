@@ -13,6 +13,7 @@ import {cn} from '@/lib/cn';
 import type {CameraPosition, Trajectory} from '@/types';
 import {usePlotData} from '../PlotDataContext';
 import {useViewerStore} from '../store';
+import {CameraFrameOverlay} from './CameraFrameOverlay';
 import {useVideoOffset} from './ReplayTimeline';
 import {getFrontVideo, registerFrontVideo, toVideoTime} from './replayClock';
 import {type PipCorner, type PipSize, useReplayUi, type VideoQuality} from './replayUi';
@@ -43,7 +44,12 @@ export function CameraFeeds() {
   const {trajectory} = usePlotData();
   const enabled = useViewerStore((s) => s.playback.enabled);
   if (!enabled || !trajectory) return null;
-  return <Pip trajectory={trajectory} />;
+  return (
+    <>
+      <CameraFrameOverlay />
+      <Pip trajectory={trajectory} />
+    </>
+  );
 }
 
 function Pip({trajectory}: {trajectory: Trajectory}) {

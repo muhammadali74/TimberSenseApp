@@ -13,8 +13,10 @@ Input (pipeline output dir):
     traj.csv                             t,x,y,z sensor positions           (optional)
     visuals/*.png                        report charts                      (optional)
     *.mp4                                front camera video                 (optional)
+    *_intrinsics.json                    pinhole intrinsics of that video   (optional → camera.json)
+                                         written by hevc_to_mp4.py --undistort
 
-Output (plot dir): plot.json, cloud.json + cloud.bin, trees.json, trajectory.json, dtm.glb,
+Output (plot dir): plot.json, cloud.json + cloud.bin, trees.json, trajectory.json, dtm.glb, camera.json,
 media/{thumbs,qsm,video}/, media/*.png. Existing media/video/ renditions are reused unless --force-video.
 
 Dependencies: numpy, scipy, Pillow; ffmpeg for video.
@@ -585,6 +587,82 @@ def export_video(out: Path, video: Path, force: bool) -> tuple[dict, dict]:
     return {"front": "media/video/front_720.mp4"}, {"front": renditions}
 
 
+def _fisheye_from_mat(mat_path: Path) -> dict | None:
+    """Best effort: raw-lens fisheye model (MATLAB fisheyeParameters) for reference in camera.json."""
+    try:
+        import io
+        import warnings
+
+        import scipy.io as sio
+        from scipy.io.matlab import _mio5
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            top = sio.loadmat(mat_path, squeeze_me=True, struct_as_record=False)
+            raw = np.asarray(top["__function_workspace__"]).tobytes()
+            f = io.BytesIO(b"MATLAB 5.0 MAT-file".ljust(116) + bytes(8) + raw[:4] + raw[8:])
+            reader = _mio5.MatFile5Reader(f, squeeze_me=True, struct_as_record=False)
+            reader.initialize_read()
+            f.seek(128)
+            hdr, _ = reader.read_var_header()
+            stack = [reader.read_var_array(hdr, process=True)]
+        while stack:
+            o = stack.pop()
+            if hasattr(o, "_fieldnames"):
+                if {"MappingCoefficients", "DistortionCenter"} <= set(o._fieldnames):
+                    return {
+                        "model": "scaramuzza",
+                        "mappingCoefficients": np.atleast_1d(np.asarray(o.MappingCoefficients, float)).tolist(),
+                        # MATLAB is 1-based; stored 0-based like the pinhole K
+                        "distortionCenter": (np.asarray(o.DistortionCenter, float) - 1).round(4).tolist(),
+                        "stretchMatrix": np.asarray(o.StretchMatrix, float).reshape(2, 2).round(6).tolist(),
+                        "imageSize": [int(v) for v in np.atleast_1d(o.ImageSize)][::-1],  # [width, height]
+                    }
+                stack.extend(getattr(o, k) for k in o._fieldnames)
+            elif isinstance(o, np.ndarray) and o.dtype == object:
+                stack.extend(o.flat)
+            elif isinstance(o, np.ndarray) and o.dtype.names:
+                stack.extend(x for name in o.dtype.names for x in o[name].flat)
+    except Exception as e:  # noqa: BLE001 — reference data only
+        log(f"camera: fisheye model not read from {mat_path} ({e})")
+    return None
+
+
+def export_camera(out: Path, src: Path) -> str | None:
+    """camera.json (PLAN.md §5.2) from the *_intrinsics.json that hevc_to_mp4.py --undistort writes."""
+    found = sorted(src.glob("*_intrinsics.json"))
+    if not found:
+        return None
+    k = json.loads(found[0].read_text())
+    w, h = int(k["width"]), int(k["height"])
+    fx, fy, cx, cy = (float(k[n]) for n in ("fx", "fy", "cx", "cy"))
+    cam = {
+        "version": 1,
+        "model": "pinhole",
+        "width": w,
+        "height": h,
+        "fx": fx,
+        "fy": fy,
+        "cx": cx,
+        "cy": cy,
+        "hfovDeg": round(math.degrees(2 * math.atan(w / 2 / fx)), 3),
+        "vfovDeg": round(math.degrees(2 * math.atan(h / 2 / fy)), 3),
+        "source": {
+            "tool": "hevc_to_mp4.py --undistort",
+            "file": found[0].name,
+            "scaleFactor": k.get("scale_factor"),
+            "calibration": Path(k["calibration"]).name if k.get("calibration") else None,
+        },
+    }
+    if k.get("calibration") and Path(k["calibration"]).is_file():
+        fisheye = _fisheye_from_mat(Path(k["calibration"]))
+        if fisheye:
+            cam["fisheye"] = fisheye
+    write_json(out / "camera.json", cam)
+    log(f"camera.json: {w}x{h}, fx {fx:.1f}, FOV {cam['hfovDeg']}° x {cam['vfovDeg']}°")
+    return "camera.json"
+
+
 # ════════════════════════════════ main ════════════════════════════════
 
 def main(argv=None) -> None:
@@ -688,6 +766,9 @@ def main(argv=None) -> None:
     video = args.video or (videos[0] if videos else None)
     if video and not args.no_video:
         files["video"], files["videoRenditions"] = export_video(out, video, args.force_video)
+    camera = export_camera(out, src)
+    if camera:
+        files["camera"] = camera
     elif args.no_video and (out / "media" / "video").exists():
         shutil.rmtree(out / "media" / "video")
 

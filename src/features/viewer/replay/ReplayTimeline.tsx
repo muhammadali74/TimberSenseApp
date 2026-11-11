@@ -27,6 +27,7 @@ import {type PlaybackSpeed, useViewerStore} from '../store';
 import {seekTo, useReplayClock} from './replayClock';
 import {useReplayUi} from './replayUi';
 import {getPath, indexAt} from './trajectoryPath';
+import {effectiveIntrinsics, hfovOf, vfovOf} from './videoProjection';
 
 const VIDEO_FPS = 15;
 const SPEEDS: PlaybackSpeed[] = [0.5, 1, 2, 4];
@@ -250,9 +251,7 @@ function CalibrationPopover() {
         <Field label="Camera tilt" value={`${cal.pitchDeg.toFixed(0)}°`}>
           <Slider value={cal.pitchDeg} min={-35} max={20} step={1} onChange={(v) => set({pitchDeg: v})} />
         </Field>
-        <Field label="Field of view (horizontal)" value={`${cal.hfovDeg.toFixed(0)}°`}>
-          <Slider value={cal.hfovDeg} min={50} max={130} step={1} onChange={(v) => set({hfovDeg: v})} />
-        </Field>
+        <FovFields />
         <Field label="Eye height" value={`${cal.heightOffsetM >= 0 ? '+' : ''}${cal.heightOffsetM.toFixed(2)} m`}>
           <Slider value={cal.heightOffsetM} min={-1} max={1} step={0.05} onChange={(v) => set({heightOffsetM: v})} />
         </Field>
@@ -261,9 +260,87 @@ function CalibrationPopover() {
           for this plot in this browser.
         </p>
         <RevealSwitch />
+        <FrameSwitch />
       </PopoverPanel>
     </Popover>
   );
+}
+
+/** H / V field of view: default from the plot's camera.json; dragging overrides, ↺ returns to it. */
+function FovFields() {
+  const {camera} = usePlotData();
+  const cal = useReplayUi((s) => s.calibration);
+  const set = useReplayUi((s) => s.setCalibration);
+  const k = effectiveIntrinsics(camera, cal);
+  const h = hfovOf(k);
+  const v = vfovOf(k);
+  const source = camera ? 'camera.json' : 'default';
+  return (
+    <>
+      <FovField
+        label="Horizontal FOV"
+        value={h}
+        overridden={cal.hfovDeg != null}
+        source={source}
+        min={40}
+        max={130}
+        onChange={(x) => set({hfovDeg: x})}
+        onReset={() => set({hfovDeg: null})}
+      />
+      <FovField
+        label="Vertical FOV"
+        value={v}
+        overridden={cal.vfovDeg != null}
+        source={source}
+        min={25}
+        max={100}
+        onChange={(x) => set({vfovDeg: x})}
+        onReset={() => set({vfovDeg: null})}
+      />
+    </>
+  );
+}
+
+function FovField(props: {
+  label: string;
+  value: number;
+  overridden: boolean;
+  source: string;
+  min: number;
+  max: number;
+  onChange: (v: number) => void;
+  onReset: () => void;
+}) {
+  return (
+    <Field
+      label={props.label}
+      value={
+        <span className="flex items-center gap-1.5">
+          {props.overridden ? (
+            <button
+              type="button"
+              title={`Back to ${props.source}`}
+              onClick={props.onReset}
+              className="cursor-pointer text-fg-muted hover:text-fg"
+            >
+              <RotateCcw size={11} />
+            </button>
+          ) : (
+            <span className="font-sans text-[10px] text-brand">{props.source}</span>
+          )}
+          {props.value.toFixed(2)}°
+        </span>
+      }
+    >
+      <Slider value={props.value} min={props.min} max={props.max} step={0.1} onChange={props.onChange} />
+    </Field>
+  );
+}
+
+function FrameSwitch() {
+  const showFrame = useReplayUi((s) => s.showFrame);
+  const setShowFrame = useReplayUi((s) => s.setShowFrame);
+  return <Switch label="Show the video's frame in 3D" checked={showFrame} onChange={setShowFrame} />;
 }
 
 function RevealSwitch() {

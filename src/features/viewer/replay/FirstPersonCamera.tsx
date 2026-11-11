@@ -1,21 +1,25 @@
 /**
  * WS-E. First-person replay camera (cameraMode 'follow'): walks the point cloud along the capture
- * trajectory at playback.t, looking where the operator walked, with a field of view matched to the
- * front camera so the 3D view lines up with the video.
+ * trajectory at playback.t, looking where the operator walked. The projection is built from the
+ * front video's pinhole intrinsics (camera.json: fx, fy, cx, cy), so horizontal and vertical FOV
+ * both match the video and the 3D view lines up with it.
  * Drag to look around; while playing the view eases back to the walking direction.
  */
 import {useFrame, useThree} from '@react-three/fiber';
 import {useEffect, useMemo, useRef} from 'react';
 import * as THREE from 'three';
 import type {Trajectory} from '@/types';
+import {usePlotData} from '../PlotDataContext';
 import {useViewerStore} from '../store';
 import {useReplayUi} from './replayUi';
 import {getPath, type Pose, poseAt} from './trajectoryPath';
+import {effectiveIntrinsics, setProjectionFromIntrinsics} from './videoProjection';
 
 const SNAP_DIST_M = 1.5; // farther than this (a seek) → jump instead of gliding
 const LOOK_RETURN_RATE = 1.6; // 1/s, how fast free-look eases back while playing
 
 export function FirstPersonCamera({trajectory}: {trajectory: Trajectory}) {
+  const {camera: intrinsics} = usePlotData();
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   const size = useThree((s) => s.size);
   const dom = useThree((s) => s.gl.domElement);
@@ -25,8 +29,8 @@ export function FirstPersonCamera({trajectory}: {trajectory: Trajectory}) {
   const pos = useRef<THREE.Vector3 | null>(null);
   const dragging = useRef(false);
 
-  // Take over the camera while in first person; on exit restore the FOV and the overview pose the
-  // user had before entering (so leaving first person lands back where they were).
+  // Take over the camera while in first person; on exit restore the normal (fov-based) projection
+  // and the overview pose the user had before entering, so leaving first person lands back there.
   useEffect(() => {
     const savedFov = camera.fov;
     const savedPos = camera.position.clone();
@@ -76,13 +80,9 @@ export function FirstPersonCamera({trajectory}: {trajectory: Trajectory}) {
     const ui = useReplayUi.getState();
     const cal = ui.calibration;
 
-    // Field of view: match the video's horizontal FOV on this canvas' aspect.
-    const aspect = size.width / Math.max(1, size.height);
-    const vfov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(cal.hfovDeg) / 2) / aspect));
-    if (Math.abs(camera.fov - vfov) > 0.01) {
-      camera.fov = vfov;
-      camera.updateProjectionMatrix();
-    }
+    // Projection straight from the video's intrinsics (re-applied every frame: R3F resets the
+    // projection on canvas resize).
+    setProjectionFromIntrinsics(camera, effectiveIntrinsics(intrinsics, cal), size.width, size.height);
 
     const p = poseAt(path, playback.t, pose.current);
     const target = new THREE.Vector3(p.x, p.y, p.z + cal.heightOffsetM);

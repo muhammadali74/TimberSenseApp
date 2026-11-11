@@ -2,7 +2,7 @@
  * Loaders for per-plot files (contracts §5.2–5.5). All paths are relative to the plot directory,
  * e.g. plotDir = '/data/plots/fariy_1_test'.
  */
-import type {CloudAttribute, CloudData, CloudHeader, PlotManifest, Trajectory, Tree} from '@/types';
+import type {CameraIntrinsics, CloudAttribute, CloudData, CloudHeader, PlotManifest, Trajectory, Tree} from '@/types';
 
 export function plotUrl(plotDir: string, relPath: string): string {
   return `${plotDir.replace(/\/$/, '')}/${relPath}`;
@@ -28,6 +28,16 @@ export function loadTrees(plotDir: string, manifest: PlotManifest): Promise<Tree
 export async function loadTrajectory(plotDir: string, manifest: PlotManifest): Promise<Trajectory | null> {
   if (!manifest.files.trajectory) return null;
   return fetchJson<Trajectory>(plotUrl(plotDir, manifest.files.trajectory));
+}
+
+/** Front-camera intrinsics, or null when the plot has none (or the file is missing). */
+export async function loadCamera(plotDir: string, manifest: PlotManifest): Promise<CameraIntrinsics | null> {
+  if (!manifest.files.camera) return null;
+  try {
+    return await fetchJson<CameraIntrinsics>(plotUrl(plotDir, manifest.files.camera));
+  } catch {
+    return null;
+  }
 }
 
 const TYPED_ARRAYS = {float32: Float32Array, uint8: Uint8Array, uint16: Uint16Array} as const;

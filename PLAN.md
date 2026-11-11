@@ -41,6 +41,7 @@ Outputs go to `public/data/plots/<plotId>/`. The exact formats are defined in **
 - `trees.json`: per-tree records. DBH rings, height sticks and crown circles are computed in the viewer from these records, so there is no separate markers file.
 - `trajectory.json`: the capture path, with Z corrected and heading derived
 - `dtm.glb`: the ground mesh
+- `camera.json`: pinhole intrinsics of the undistorted front video (from `hevc_to_mp4.py --undistort`'s `*_intrinsics.json`)
 - `media/`: thumbnails, charts, video renditions and QSM meshes
 
 ---
@@ -150,11 +151,25 @@ interface PlotManifest {
     video?: { front?: string; left?: string; right?: string; back?: string }; // missing = "offline"
     videoRenditions?: { front?: VideoRendition[]; /* … same cameras */ };   // optional; best first (WS-E)
     // VideoRendition = { src: string; codec: 'hevc' | 'h264'; width: number; height: number }
+    camera?: string;                                   // 'camera.json' → CameraIntrinsics (§5.2b)
     charts?: Record<string, string>;                   // e.g. hist_dbh_cm → media/hist_dbh_cm.png
   };
   summary: PlotSummary; // camelCase version of plot_summary.json + carbonT, co2eT
 }
 ```
+
+### 5.2b `camera.json` (front-camera intrinsics) → `src/types/plot.ts` `CameraIntrinsics`
+Pinhole intrinsics of the **undistorted** front video, in 0-based pixels. The video was undistorted from the raw fisheye (MATLAB `fisheyeParameters` in `matlab.mat`) by `hevc_to_mp4.py --undistort`, equivalent to MATLAB `undistortFisheyeImage(..., 'OutputView','same')` with ScaleFactor 1, so the principal point is the image centre.
+```ts
+interface CameraIntrinsics {
+  version: 1; model: 'pinhole'; width: number; height: number;   // 3840 × 2160
+  fx: number; fy: number; cx: number; cy: number;                // 1889.446, 1889.446, 1919.5, 1079.5
+  hfovDeg: number; vfovDeg: number;                              // 90.919, 59.504 (derived)
+  source?: {...};                                                // tool, scale factor, calibration file
+  fisheye?: { model: 'scaramuzza'; mappingCoefficients; distortionCenter; stretchMatrix; imageSize }; // raw lens, reference only
+}
+```
+The raw lens covers about 125° × 67°, but undistorting to a 3840 × 2160 pinhole at ScaleFactor 1 keeps only the central 90.9° × 59.5°. The 3D view must match the video, so it uses the pinhole values. A smaller ScaleFactor would keep more of the lens and produce a new `camera.json`. Loaded by `lib/loaders.ts` as `PlotData.camera` (null when absent).
 
 ### 5.3 `cloud.json` + `cloud.bin` → `src/types/cloud.ts`
 `cloud.bin` stores each attribute as its own array, one after another (struct-of-arrays), with every array starting on a 4-byte boundary. `cloud.json` describes the layout:
@@ -428,7 +443,8 @@ Everything else starts once this is merged.
 - **First-person replay ("walk the capture"):** the headline feature. During replay the 3D camera walks through the point cloud exactly as the operator walked in the video, so the cloud and the front-camera footage move together.
   - **Pose:** position comes from `trajectory.samples` interpolated at the current time (Catmull-Rom, so motion is smooth at 60 fps between the 10 Hz samples). Height is the trajectory Z (DTM + sensor height) plus a calibration offset, so it follows the terrain like B's walk mode.
   - **Heading:** yaw from the trajectory, smoothed with a ~0.6 s window so footstep jitter doesn't shake the view. There is no IMU orientation, so the view turns with the walking direction, not with head turns. This is a known limit of the data.
-  - **Matching the footage:** the 3D field of view is set from the front camera's horizontal FOV, adjusted for the canvas aspect, so objects line up with the video. The calibration panel holds time offset (`videoOffsetS` default from the trajectory), heading offset, camera pitch, horizontal FOV and height offset. Values are saved per plot in the browser.
+  - **Matching the footage:** the projection is built directly from the video's intrinsics in `camera.json` (fx, fy, cx, cy; §5.2b). The video frame is fitted inside the canvas, so horizontal **and** vertical FOV both match without stretching. A "video frame" outline shows where the video's edges fall, since the canvas is a different shape than 16:9.
+  - **Calibration panel:** time offset (`videoOffsetS` default from the trajectory, ±1 frame nudges), heading offset, camera tilt, **horizontal FOV and vertical FOV** (default from `camera.json`, each resettable to it) and eye height. Values are saved per plot in the browser. Plots without `camera.json` fall back to 90° × 59°.
   - **Looking around:** while paused, drag to look around from the current spot. Pressing play eases the view back to the walking direction.
   - Runs as `cameraMode: 'follow'`. B's `CameraController` already hands over control in this mode. The rig marker hides in first person.
 - **Clock and sync:** while a front video is playing, **the video is the master clock**. `requestVideoFrameCallback` gives the time of the frame on screen, and the camera time is extrapolated between frames (≤ 1 frame of error). While scrubbing or paused, the timeline is master and seeks the video. Without a video (e.g. the sample), a timeline clock drives everything. Speed 0.5–4× maps to `video.playbackRate`.
@@ -441,7 +457,9 @@ Everything else starts once this is merged.
   - playing the sample shows the rig moving, the trail growing and the cloud revealing
   - in first person on `fariy_1_test` the 3D walk visibly matches the 4K front video (turns and stops line up after calibration)
   - 4K plays smoothly in Chrome via either HEVC or H.264.
-- **Data (small change to A's tools):** `tools/transcode.sh` adds a stream-copied HEVC 4K file (`front_2160_hevc.mp4`, `+faststart`) and a **4K H.264** encode (`front_2160.mp4`), and `prepare_plot.py` lists all renditions in `files.videoRenditions`.
+- **Data (small change to A's tools):**
+  - `tools/transcode.sh` adds a stream-copied HEVC 4K file (`front_2160_hevc.mp4`, `+faststart`) and a **4K H.264** encode (`front_2160.mp4`), and `prepare_plot.py` lists all renditions in `files.videoRenditions`.
+  - `prepare_plot.py` turns the video's `*_intrinsics.json` (written by `hevc_to_mp4.py --undistort`; copy it next to the video in the source folder) into `camera.json`, with the raw fisheye model read from the `.mat` it references. `validate_plot.py` checks it.
 
 #### F — Cinematic flythrough
 - Path generators from `trees.json` and the plot bbox:

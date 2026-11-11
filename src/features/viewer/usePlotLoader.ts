@@ -1,5 +1,5 @@
 import {useEffect, useState} from 'react';
-import {loadCloud, loadManifest, loadTrajectory, loadTrees} from '@/lib/loaders';
+import {loadCamera, loadCloud, loadManifest, loadTrajectory, loadTrees} from '@/lib/loaders';
 import type {PlotData} from './PlotDataContext';
 
 export type LoadState =
@@ -18,9 +18,10 @@ export function usePlotLoader(plotDir: string): LoadState {
         update({status: 'loading', stage: 'Reading manifest', progress: 0});
         const manifest = await loadManifest(plotDir);
         update({status: 'loading', stage: 'Loading trees', progress: 0.02});
-        const [trees, trajectory] = await Promise.all([
+        const [trees, trajectory, camera] = await Promise.all([
           loadTrees(plotDir, manifest),
           loadTrajectory(plotDir, manifest),
+          loadCamera(plotDir, manifest),
         ]);
         const cloud = await loadCloud(plotDir, manifest, (loaded, total) =>
           update({
@@ -31,7 +32,7 @@ export function usePlotLoader(plotDir: string): LoadState {
         );
         update({
           status: 'ready',
-          data: {plotDir, manifest, cloud, trees, trajectory, treesById: new Map(trees.map((t) => [t.id, t]))},
+          data: {plotDir, manifest, cloud, trees, trajectory, camera, treesById: new Map(trees.map((t) => [t.id, t]))},
         });
       } catch (e) {
         update({status: 'error', error: e instanceof Error ? e.message : String(e)});

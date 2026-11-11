@@ -62,7 +62,8 @@
    "hist_height_m": "media/hist_height_m.png",
    "hist_volume_m3": "media/hist_volume_m3.png",
    "plot_map": "media/plot_map.png"
-  }
+  },
+  "camera": "camera.json"
  },
  "summary": {
   "plotAreaM2": 452.337615,
