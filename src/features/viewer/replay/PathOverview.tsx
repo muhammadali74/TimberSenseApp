@@ -3,7 +3,7 @@
  * path drawn over the point cloud (TrajectoryLayer renders it on top in this mode). Mouse: drag to
  * rotate, right-drag to pan, scroll to zoom (B's OrbitControls). Works with or without a replay
  * running — during replay the rig, walked trail and path ahead are visible from above.
- * Leaves automatically when first-person or walk mode is entered.
+ * Leaves automatically when the camera leaves orbit mode (first person, walk, flythrough).
  */
 import {Compass, Waypoints, X} from 'lucide-react';
 import {useEffect, useMemo} from 'react';
@@ -35,7 +35,7 @@ export function PathOverview() {
   const requestCamera = useViewerStore((s) => s.requestCamera);
 
   useEffect(() => {
-    if (pathView && (cameraMode === 'follow' || cameraMode === 'walk')) exitPathView();
+    if (pathView && cameraMode !== 'orbit') exitPathView();
   }, [pathView, cameraMode]);
 
   const stats = useMemo(() => {
