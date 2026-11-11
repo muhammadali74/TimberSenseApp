@@ -43,6 +43,8 @@ interface ReplayUiState {
   look: {yaw: number; pitch: number};
   /** Outline of the video's frame over the first-person 3D view. */
   showFrame: boolean;
+  /** Bird's-eye path overview: top-down orbit view with the capture path drawn over the cloud. */
+  pathView: boolean;
   /** Set by CameraFeeds: what is actually playing, for display. */
   activeRendition: string | null;
 
@@ -55,6 +57,7 @@ interface ReplayUiState {
   ) => void;
   setActiveRendition: (label: string | null) => void;
   setShowFrame: (v: boolean) => void;
+  setPathView: (v: boolean) => void;
 }
 
 // v2: FOV comes from camera.json — calibrations saved before that (single 95° hfov) are ignored.
@@ -91,6 +94,7 @@ export const useReplayUi = create<ReplayUiState>()((set, get) => ({
   look: {yaw: 0, pitch: 0},
   activeRendition: null,
   showFrame: true,
+  pathView: false,
 
   loadForPlot: (plotId) => set({plotId, calibration: readCalibration(plotId), look: {yaw: 0, pitch: 0}}),
   setCalibration: (patch) => {
@@ -106,4 +110,5 @@ export const useReplayUi = create<ReplayUiState>()((set, get) => ({
   setPip: (patch) => set(patch),
   setActiveRendition: (activeRendition) => set({activeRendition}),
   setShowFrame: (showFrame) => set({showFrame}),
+  setPathView: (pathView) => set({pathView}),
 }));

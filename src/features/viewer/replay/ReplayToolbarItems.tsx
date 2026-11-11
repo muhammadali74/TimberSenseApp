@@ -1,8 +1,12 @@
-/** WS-E. Toolbar: capture path toggle, start/stop the capture replay (first person), show the camera window. */
-import {Footprints, PictureInPicture, Route} from 'lucide-react';
+/**
+ * WS-E. Toolbar: capture path toggle, bird's-eye path overview, start/stop the capture replay
+ * (first person), show the camera window.
+ */
+import {Footprints, PictureInPicture, Route, Waypoints} from 'lucide-react';
 import {ToolbarButton, ToolbarDivider} from '../core/ToolbarButton';
 import {usePlotData} from '../PlotDataContext';
 import {useViewerStore} from '../store';
+import {enterPathView, exitPathView} from './PathOverview';
 import {useReplayUi} from './replayUi';
 
 export function ReplayToolbarItems() {
@@ -14,6 +18,7 @@ export function ReplayToolbarItems() {
   const setCameraMode = useViewerStore((s) => s.setCameraMode);
   const pipVisible = useReplayUi((s) => s.pipVisible);
   const setPip = useReplayUi((s) => s.setPip);
+  const pathView = useReplayUi((s) => s.pathView);
 
   if (!trajectory) return null;
 
@@ -37,6 +42,13 @@ export function ReplayToolbarItems() {
         onClick={() => setLayers({trajectory: !layers.trajectory})}
       >
         <Route size={18} />
+      </ToolbarButton>
+      <ToolbarButton
+        label="Path overview (bird's-eye view)"
+        active={pathView}
+        onClick={() => (pathView ? exitPathView() : enterPathView())}
+      >
+        <Waypoints size={18} />
       </ToolbarButton>
       <ToolbarButton
         label={replaying ? 'Stop capture replay' : 'Replay capture (walk it in first person)'}

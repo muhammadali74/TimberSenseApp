@@ -24,6 +24,8 @@ import type {Trajectory} from '@/types';
 import {Field, Segmented, Slider, Switch} from '../core/controls';
 import {usePlotData} from '../PlotDataContext';
 import {type PlaybackSpeed, useViewerStore} from '../store';
+import {PathOverview} from './PathOverview';
+import {PATH_GRADIENT_CSS} from './pathColors';
 import {seekTo, useReplayClock} from './replayClock';
 import {useReplayUi} from './replayUi';
 import {getPath, indexAt} from './trajectoryPath';
@@ -38,7 +40,12 @@ export function ReplayTimeline() {
   useEffect(() => loadForPlot(manifest.id), [loadForPlot, manifest.id]);
   const enabled = useViewerStore((s) => s.playback.enabled);
   if (!trajectory) return null;
-  return <Timeline trajectory={trajectory} enabled={enabled} />;
+  return (
+    <>
+      <PathOverview />
+      <Timeline trajectory={trajectory} enabled={enabled} />
+    </>
+  );
 }
 
 export function useVideoOffset(trajectory: Trajectory) {
@@ -118,7 +125,7 @@ function Timeline({trajectory, enabled}: {trajectory: Trajectory; enabled: boole
           <div className="absolute inset-x-0 h-1.5 rounded-full bg-surface-3" />
           <div
             className="absolute left-0 h-1.5 rounded-full"
-            style={{width: `${pct}%`, background: 'linear-gradient(90deg, #14b8a6, #f57e26)'}}
+            style={{width: `${pct}%`, background: PATH_GRADIENT_CSS}}
           />
           <input
             type="range"

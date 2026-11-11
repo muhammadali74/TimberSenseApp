@@ -8,12 +8,12 @@ import {useMemo} from 'react';
 import * as THREE from 'three';
 import {usePlotData} from '../PlotDataContext';
 import {useViewerStore} from '../store';
+import {PATH_END, PATH_START, pathColor} from './pathColors';
+import {useReplayUi} from './replayUi';
 import {getPath, indexAt, type TrajectoryPath} from './trajectoryPath';
 
 const GROUND_LIFT_M = 0.06;
 const ARROW_EVERY_M = 2.5;
-const START = new THREE.Color('#14b8a6');
-const END = new THREE.Color('#f57e26');
 
 /** Path points on the ground (trajectory Z minus sensor height). */
 function groundPoints(path: TrajectoryPath, step = 2): {pts: THREE.Vector3[]; idx: number[]} {
@@ -41,13 +41,19 @@ export function TrajectoryLayer() {
 function TrajectoryPathView({path}: {path: TrajectoryPath}) {
   const replaying = useViewerStore((s) => s.playback.enabled);
   const firstPerson = useViewerStore((s) => s.cameraMode === 'follow');
+  // Bird's-eye overview: draw the path over the canopy, thicker, with bigger arrows and pins.
+  const onTop = useReplayUi((s) => s.pathView);
+  const order = onTop ? 20 : 8;
+  const arrowScale = onTop ? 2.6 : 1;
+  let walkedWidth = replaying ? 4 : 3;
+  if (onTop) walkedWidth = 5;
   // Re-render the trail only when we pass a new sample (10 Hz), not every frame.
   const sampleIdx = useViewerStore((s) => (s.playback.enabled ? indexAt(path, s.playback.t) : -1));
 
   const {pts, idx, colors, arrows} = useMemo(() => {
     const {pts, idx} = groundPoints(path);
     const last = path.t.length - 1;
-    const colors = idx.map((i) => START.clone().lerp(END, i / last));
+    const colors = idx.map((i) => pathColor(i / last));
     const arrows: {pos: THREE.Vector3; yaw: number; color: THREE.Color}[] = [];
     for (let k = 1, next = ARROW_EVERY_M; k < idx.length - 1; k++) {
       if (path.dist[idx[k]] < next) continue;
@@ -71,48 +77,83 @@ function TrajectoryPathView({path}: {path: TrajectoryPath}) {
 
   return (
     <group>
+      {onTop && (
+        // dark casing under the coloured path so it reads against green ground from above
+        <Line
+          points={pts}
+          color="#0a0d12"
+          lineWidth={9}
+          transparent
+          opacity={0.45}
+          depthTest={false}
+          renderOrder={order - 1}
+        />
+      )}
       {walked.length >= 2 && (
-        <Line points={walked} vertexColors={walkedColors} lineWidth={replaying ? 4 : 3} renderOrder={8} />
+        <Line
+          points={walked}
+          vertexColors={walkedColors}
+          lineWidth={walkedWidth}
+          depthTest={!onTop}
+          renderOrder={order}
+        />
       )}
       {ahead && ahead.length >= 2 && (
         <Line
           points={ahead}
           color="#ffffff"
-          lineWidth={2}
+          lineWidth={onTop ? 3 : 2}
           dashed
-          dashSize={0.3}
-          gapSize={0.2}
+          dashSize={onTop ? 0.6 : 0.3}
+          gapSize={onTop ? 0.4 : 0.2}
           transparent
-          opacity={0.55}
-          renderOrder={8}
+          opacity={onTop ? 0.8 : 0.55}
+          depthTest={!onTop}
+          renderOrder={order}
         />
       )}
       {arrows.map((a) => (
-        <mesh key={`${a.pos.x},${a.pos.y}`} position={a.pos} rotation={[0, 0, a.yaw - Math.PI / 2]} renderOrder={8}>
+        <mesh
+          key={`${a.pos.x},${a.pos.y}`}
+          position={a.pos}
+          rotation={[0, 0, a.yaw - Math.PI / 2]}
+          scale={arrowScale}
+          renderOrder={order + 1}
+        >
           <coneGeometry args={[0.12, 0.32, 3]} />
-          <meshBasicMaterial color={a.color} />
+          <meshBasicMaterial color={a.color} depthTest={!onTop} />
         </mesh>
       ))}
       {!firstPerson && (
         <>
-          <PathPin position={pts[0]} color="#14b8a6" label="Start" />
-          <PathPin position={pts[pts.length - 1]} color="#f57e26" label="End" />
+          <PathPin position={pts[0]} color={PATH_START} label="Start" onTop={onTop} />
+          <PathPin position={pts[pts.length - 1]} color={PATH_END} label="End" onTop={onTop} />
         </>
       )}
     </group>
   );
 }
 
-function PathPin({position, color, label}: {position: THREE.Vector3; color: string; label: string}) {
+function PathPin({
+  position,
+  color,
+  label,
+  onTop,
+}: {
+  position: THREE.Vector3;
+  color: string;
+  label: string;
+  onTop: boolean;
+}) {
   return (
     <group position={position}>
-      <mesh position={[0, 0, 0.5]} rotation={[Math.PI / 2, 0, 0]}>
+      <mesh position={[0, 0, 0.5]} rotation={[Math.PI / 2, 0, 0]} renderOrder={onTop ? 22 : 0}>
         <cylinderGeometry args={[0.025, 0.025, 1, 6]} />
-        <meshBasicMaterial color={color} />
+        <meshBasicMaterial color={color} depthTest={!onTop} />
       </mesh>
-      <mesh position={[0, 0, 1]}>
+      <mesh position={[0, 0, 1]} scale={onTop ? 2.2 : 1} renderOrder={onTop ? 22 : 0}>
         <sphereGeometry args={[0.12, 16, 12]} />
-        <meshBasicMaterial color={color} />
+        <meshBasicMaterial color={color} depthTest={!onTop} />
       </mesh>
       <Html position={[0, 0, 1.25]} center zIndexRange={[5, 0]} style={{pointerEvents: 'none'}}>
         <span
