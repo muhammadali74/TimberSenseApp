@@ -463,14 +463,15 @@ Everything else starts once this is merged.
   - `tools/transcode.sh` adds a stream-copied HEVC 4K file (`front_2160_hevc.mp4`, `+faststart`) and a **4K H.264** encode (`front_2160.mp4`), and `prepare_plot.py` lists all renditions in `files.videoRenditions`.
   - `prepare_plot.py` turns the video's `*_intrinsics.json` (written by `hevc_to_mp4.py --undistort`; copy it next to the video in the source folder) into `camera.json`, with the raw fisheye model read from the `.mat` it references. `validate_plot.py` checks it.
 
-#### F — Cinematic flythrough
-- Path generators from `trees.json` and the plot bbox:
-  - **Orbit plot:** a rising helix around the plot
-  - **Walk between trees:** greedy nearest-neighbour route over tree bases, offset sideways to pass between stems, as a Catmull-Rom curve at 1.7 m with look-ahead
-  - **Tree tour:** pause at each of the top-N trees with an info card overlay
-- Easing, constant-speed parameterisation, and collision clearance of ≥ 0.6 m from stems.
-- Letterbox bars, auto-hiding UI, play/pause, progress, exit with Esc. "Record video" via `MediaRecorder` on the canvas is a nice-to-have.
-- Drives the camera only through `cameraMode: 'flythrough'` and its own controller component, which `CameraController` hands control to.
+#### F — Cinematic flythrough — ✅ done (`ws-f/flythrough`)
+- Path generators from `trees.json` and the plot bbox (`flythrough/flights.ts`):
+  - **Orbit plot:** a rising helix around the plot (1.15 turns, ~44 s), looking at the canopy centre
+  - **Walk between trees:** greedy nearest-neighbour route over tree bases, offset sideways (alternating sides) to pass between stems, as a Catmull-Rom curve at 1.7 m above the terrain with a 4 m look-ahead, ~1.3 m/s
+  - **Tree tour:** the 6 tallest valid trees in nearest-neighbour order. The camera cranes over the canopy to each tree, then makes a slow 35° arc around it for 6 s on the side with the clearest view. The tree is selected (others dim, DBH ring and sidebar details show) and an info card shows its DBH, height and volume.
+- Easing, constant-speed parameterisation (arc-length resampled), and collision clearance of ≥ 0.6 m from stems (the walk is pushed 0.85 m out then smoothed; fariy_1_test minimum 0.72 m, logged in dev).
+- Walk and tour start with a transit from the current view and end by rising back to the overview; leaving a flythrough keeps the last view (the orbit pivot is set to the last look target).
+- Letterbox bars, auto-hiding UI (the toolbar and legend are hidden; the controls fade after 2.5 s without mouse movement), play/pause (Space), scrubber, progress, exit with Esc. "Record" restarts the flight and records the canvas via `MediaRecorder` to a `.webm` download.
+- Drives the camera only through `cameraMode: 'flythrough'` and its own controller component (`FlythroughCamera`), which `CameraController` mounts in that mode. Starting a flythrough stops a capture replay and closes E's path overview.
 - **Done when** all 3 presets run smoothly on the sample.
 
 #### G — Auth, app shell & stub screens — ✅ done (`ws-g/shell`)

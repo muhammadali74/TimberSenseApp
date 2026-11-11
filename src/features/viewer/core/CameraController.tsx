@@ -11,6 +11,7 @@ import {useEffect, useRef} from 'react';
 import * as THREE from 'three';
 import type {OrbitControls as OrbitControlsImpl} from 'three-stdlib';
 import type {CloudData, Tree} from '@/types';
+import {FlythroughCamera} from '../flythrough/FlythroughCamera';
 import {usePlotData} from '../PlotDataContext';
 import {type CameraRequest, useViewerStore} from '../store';
 import {homePose} from './ViewerCanvas';
@@ -180,6 +181,7 @@ export function CameraController() {
         maxDistance={600}
       />
       {cameraMode === 'walk' && <WalkControls />}
+      {cameraMode === 'flythrough' && <FlythroughCamera />}
     </>
   );
 }

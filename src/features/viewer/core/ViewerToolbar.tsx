@@ -25,6 +25,9 @@ function WalkHint() {
 }
 
 export function ViewerToolbar() {
+  // Cinematic flythrough (WS-F) hides the tool panel and legend; its own overlay has an exit button.
+  const cinematic = useViewerStore((s) => s.cameraMode === 'flythrough');
+  if (cinematic) return null;
   return (
     <>
       <div className="pointer-events-none absolute top-3 left-3 z-10 flex flex-col gap-2">
