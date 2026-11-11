@@ -10,8 +10,10 @@ Input (pipeline output dir):
     forest_pipeline/*_dtm_complete.ply   ground model points                (optional, falls back to *_dtm.ply / ground points)
     trees.csv, plot_summary.json         per-tree + plot metrics            (required)
     trees/<id>/thumbnail.png, qsm_mesh.ply                                  (optional)
-    traj.csv                             t,x,y,z sensor positions           (optional)
-    traj.tum                             t x y z qx qy qz qw SLAM poses     (optional → heading from orientation)
+    traj.tum                             t x y z qx qy qz qw SLAM poses     (optional; preferred → positions + heading)
+    traj.csv                             t,x,y,z sensor positions           (optional; used when there is no traj.tum)
+                                         Both must be in the cloud's frame (traj.tum of fariy_1_test was shifted
+                                         into the segmentation pipeline's frame; original in traj_backup.tum).
     visuals/*.png                        report charts                      (optional)
     *.mp4                                front camera video                 (optional)
     *_intrinsics.json                    pinhole intrinsics of that video   (optional → camera.json)
@@ -373,7 +375,7 @@ def compute_t_seen(pos: np.ndarray, samples: np.ndarray, step_s: float = 0.5) ->
 
 def heading_from_tum(tum: Path, t_abs: np.ndarray) -> np.ndarray | None:
     """Heading (rad, CCW from +X, unwrapped) of the lidar body's +X axis from SLAM orientation (TUM:
-    t x y z qx qy qz qw), sampled at the traj.csv times. Body +X is the forward direction: while
+    t x y z qx qy qz qw), sampled at the trajectory times. Body +X is the forward direction: while
     walking it stays within 30° of the walking direction 99.6% of the time (fariy_1_test).
     The plot frame differs from the SLAM frame only by a translation, so the heading carries over."""
     d = np.loadtxt(tum, ndmin=2)
@@ -383,16 +385,31 @@ def heading_from_tum(tum: Path, t_abs: np.ndarray) -> np.ndarray | None:
     qx, qy, qz, qw = (d[:, i] for i in range(4, 8))
     yaw = np.unwrap(np.arctan2(2 * (qx * qy + qz * qw), 1 - 2 * (qy * qy + qz * qz)))
     if t_abs[0] < tt[0] - 0.05 or t_abs[-1] > tt[-1] + 0.05:
-        log(f"heading: {tum.name} does not cover traj.csv ({tt[0]:.2f}-{tt[-1]:.2f} s), using walking direction")
+        log(f"heading: {tum.name} does not cover the trajectory ({tt[0]:.2f}-{tt[-1]:.2f} s), using walking direction")
         return None
     return np.interp(t_abs, tt, yaw)
 
 
-def export_trajectory(out: Path, traj_csv: Path, offset: np.ndarray, ground: Ground, sensor_h: float) -> np.ndarray:
-    raw = np.genfromtxt(traj_csv, delimiter=",", names=True)
-    t = raw["t"] - raw["t"][0]
-    # traj.csv shares the cloud's XY frame but not its vertical datum → drape on the DTM + sensor height.
-    x, y = raw["x"], raw["y"]
+def read_positions(src: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray, Path] | None:
+    """(t_abs, x, y, file) of the sensor path: traj.tum when present, else traj.csv. None if neither exists."""
+    tum, csv_ = src / "traj.tum", src / "traj.csv"
+    if tum.exists():
+        d = np.loadtxt(tum, comments="#", ndmin=2)
+        return d[:, 0], d[:, 1], d[:, 2], tum
+    if csv_.exists():
+        raw = np.genfromtxt(csv_, delimiter=",", names=True)
+        return raw["t"], raw["x"], raw["y"], csv_
+    return None
+
+
+def export_trajectory(out: Path, src: Path, offset: np.ndarray, ground: Ground, sensor_h: float) -> np.ndarray | None:
+    pos = read_positions(src)
+    if pos is None:
+        return None
+    t_abs, x, y, pos_file = pos
+    log(f"trajectory positions: {pos_file.name}")
+    t = t_abs - t_abs[0]
+    # XY must be in the cloud's frame; the SLAM vertical datum isn't used → drape on the DTM + sensor height.
     z = ground(x, y) + sensor_h
 
     def smooth(a, k=9):
@@ -400,8 +417,8 @@ def export_trajectory(out: Path, traj_csv: Path, offset: np.ndarray, ground: Gro
 
     xs, ys, zs = smooth(x), smooth(y), smooth(z, 15)
     # Heading: real SLAM orientation when traj.tum is available, else derived from the walking direction.
-    tum = traj_csv.with_name("traj.tum")
-    yaw = heading_from_tum(tum, raw["t"]) if tum.exists() else None
+    tum = src / "traj.tum"
+    yaw = heading_from_tum(tum, t_abs) if tum.exists() else None
     yaw_source = "orientation" if yaw is not None else "velocity"
     if yaw is None:
         yaw = smooth(np.unwrap(np.arctan2(np.gradient(smooth(ys, 15)), np.gradient(smooth(xs, 15)))), 15)
@@ -767,8 +784,8 @@ def main(argv=None) -> None:
 
     t_seen = np.zeros(len(pos), np.uint16)
     files: dict = {"cloud": "cloud.json", "trees": "trees.json", "dtm": "dtm.glb"}
-    if (src / "traj.csv").exists():
-        samples = export_trajectory(out, src / "traj.csv", offset, ground, args.sensor_height)
+    samples = export_trajectory(out, src, offset, ground, args.sensor_height)
+    if samples is not None:
         files["trajectory"] = "trajectory.json"
         log(f"trajectory.json: {len(samples)} samples, {samples[-1, 0]:.1f} s")
         t_seen = compute_t_seen(pos, samples)
