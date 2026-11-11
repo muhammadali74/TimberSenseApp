@@ -437,7 +437,7 @@ Everything else starts once this is merged.
 - Drives the camera only through `cameraMode: 'flythrough'` and its own controller component, which `CameraController` hands control to.
 - **Done when** all 3 presets run smoothly on the sample.
 
-#### G — Auth, app shell & stub screens
+#### G — Auth, app shell & stub screens — ✅ done (`ws-g/shell`)
 - Login (§3.1) with an animated left panel and default credentials `demo@farmevo.ai` / `timbersense`, plus logout.
 - Shell (§3.2): floating top toolbars, a working global search over the catalog (results navigate to project, block or plot), region selector, user menu, notifications drawer (mock items), and a collapsible left rail.
 - **Stub screens:**
@@ -448,6 +448,22 @@ Everything else starts once this is merged.
   - Help
   - Upload Capture modal: drag-and-drop with fake upload progress, then the pipeline stages (Uploading → SLAM → Segmentation → Tree metrics → Ready)
 - **Done when** every nav item lands on a polished screen and nothing is a dead link.
+- **Delivered:**
+  - **Login:** SylvaSense split layout. The auto-scrolling feature cards use real FR-01 numbers. There's a wrong-password error, plus SSO and forgot-password modals that explain the demo account.
+  - **App shell** (`features/shell/AppShell.tsx`):
+    - map routes opt into a floating header with `handle: {chrome: 'overlay'}` in `app/router.tsx`; every other route gets the same controls in a solid bar
+    - header controls: Dashboard; global search over the catalog (press `/`, arrow keys, Enter); region selector; Upload capture; credits pill; modules launcher; notifications bell with an unread badge; profile menu (units, theme, sign out); Share
+  - **Notifications drawer**, **share dialog** (copying the link works) and the **upload-capture flow**: drop zone or device import → upload progress → 7 pipeline stages → "Open in 3D viewer", which also posts a notification.
+  - **Placeholder screens:** Reports (filters, downloads), Devices (fleet cards, sensors), Team (invite modal), Settings (units and theme work), Help (quick start, viewer shortcuts, FAQ).
+- **Shared bits other workstreams can use:**
+  - `useShell().region` (WS-H filters or flies the map with it) and `useShell().units`
+  - `toast(message)` from `features/shell/toast.tsx` for stubbed actions
+  - `PageLayout` from `features/shell/stubs/PageLayout.tsx`
+- **Deviation from §3.2:** there's no collapsible left rail. Following SylvaSense, every section is reachable from the header's modules launcher and profile menu, so map and 3D pages keep the full width.
+- **Contract touches:**
+  - `app/router.tsx`: `handle.chrome` on the home, project and block routes
+  - `viewer/usePlotLoader.ts`: keeps the most recently loaded plot in memory, so re-mounting the page after a units change is instant
+  - `index.css`: dark-mode values for the Farmevo orange tokens
 
 #### H — Maps, catalog & drill-down
 - **Catalog data:** the full `catalog.ts`.
