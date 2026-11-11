@@ -69,13 +69,14 @@ const KS_BLOCKS: BlockSpec[] = [
         summary: FARIY_1_TEST_SUMMARY,
       },
       {
+        // Same capture as FR-01, subsampled to 300k points for fast loading. No summary, so it
+        // doesn't double-count FR-01 in block / project statistics.
         id: 'sample',
         name: 'Plot FR-01 · quick preview',
         center: [FR01[0] - 0.0004, FR01[1] + 0.0003],
-        status: 'processed',
+        status: 'captured',
         captureDate: '2026-09-30T16:28:35+05:00',
         dataPath: '/data/plots/sample',
-        summary: FARIY_1_TEST_SUMMARY,
       },
     ],
   },

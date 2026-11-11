@@ -497,11 +497,31 @@ Everything else starts once this is merged.
   - **Summary slots for WS-I:** `projects/summary/ProjectSummary.tsx` and `blocks/summary/BlockSummary.tsx` are placeholders. They're rendered in a `SummaryOverlay` over the map when `?tab=summary` is set.
 - **Merge order:** H was branched from `ws-g/shell`, because it uses the shell's region store, toasts and `PageLayout`. Merge G into `dev` before H.
 
-#### I — Summaries & dashboard
+#### I — Summaries & dashboard — ✅ done (`ws-i/summaries`, branched from `ws-h/maps`)
 - **Project Summary and Block Summary tabs:** KPI cards, DBH-class stand table (5 cm classes), species donut, volume/BA by block, a per-plot table, and Export CSV (working) and PDF (stub, or `jspdf` if time allows).
 - **Dashboard (§3.7):** in `.dashboard-theme` style, with headline KPI, KPI strip, capture-activity calendar heatmap, stocking status, species mix, DBH distribution, volume by project, operators/devices, filter bar, and Export CSV.
 - Uses only `lib/aggregate.ts` and the catalog, never per-plot files, except that real plots get their `summary` merged in by the loader.
 - **Done when** the numbers agree with the plot sidebar for the real plot, and all cards render for every project.
+- **Delivered:**
+  - **Shared library** (`features/dashboard/lib`):
+    - validated chart palettes (`palette.ts`, details below)
+    - stand-table builder (`standTable.ts`): 5 cm DBH classes; real plots use `trees.json`, demo plots a seeded sample from their summary; volume is allocated by basal-area share
+    - species shares, stocking classes, real-tree loader, CSV download
+  - **Shared components:** `ChartCard`, `TooltipBox`, `BarList` (HTML bars with hover tooltips), `StandTableView` (chart or table), `SpeciesDonut`, `CalendarHeatmap`, `StockingBreakdown`, `SummaryHeader`.
+  - **Project summary:**
+    - KPIs (area, plots, stocking vs target, basal area, volume, CO₂e) and the stand table
+    - species mix and stocking status by block
+    - volume by block (click opens the block) and a block table
+    - CSV export of blocks and of the stand table; PDF is a stub
+  - **Block summary:** KPIs, stand table, stems/ha by plot against a dashed target line, species mix, and a plot table with 3D links. CSV export.
+  - **Dashboard:**
+    - hero card (plots processed out of the plan), KPI strip, and a filter row (region shared with the header, project status, search, reset)
+    - charts: capture-activity calendar with hover tooltips, plot pipeline, stocking status, species mix, volume by project, DBH distribution, device fleet
+    - recent captures, with real 3D plots first
+    - CSV export of every block
+- **Palette check:** the categorical order passes the dataviz validator in light mode (against #ffffff) and dark mode (against #16261d). The dark green was stepped to #34ad5f to stay inside the lightness band. Amber is below 3:1 contrast on white, so amber marks always carry visible labels.
+- **Catalog fix:** the FR-01 quick-preview plot no longer has a summary, so it doesn't double-count FR-01 in block and project statistics.
+- **Verified:** FR-01's row in the block summary (29 trees, 641/ha, 30.1 cm, 5.4 m, 48.5 m²/ha, 133 m³/ha) matches the viewer sidebar, and the CSV download works.
 
 ---
 

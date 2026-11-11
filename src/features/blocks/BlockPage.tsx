@@ -359,6 +359,14 @@ function PlotPreview({plot}: {plot: PlotRef}) {
   );
 }
 
+function plotNote(plot: PlotRef): string {
+  if (plot.dataPath)
+    return 'Lightweight 300k-point preview of FR-01 — opens instantly. Measurements are on the full plot.';
+  if (plot.status === 'captured')
+    return 'Captured in the field — processing is under way. Measurements appear here when it finishes.';
+  return 'This plot is on the cruise plan but hasn’t been captured yet.';
+}
+
 function PlotCard({
   plot,
   index,
@@ -411,11 +419,7 @@ function PlotCard({
             <KpiTile size="sm" label="Volume" value={fmtVolumePerHa(s.woodVolumeM3PerHa, 0)} />
           </div>
         ) : (
-          <p className="rounded-xl bg-surface-2 p-3 text-sm text-fg-muted">
-            {plot.status === 'captured'
-              ? 'Captured in the field — processing is under way. Measurements appear here when it finishes.'
-              : 'This plot is on the cruise plan but hasn’t been captured yet.'}
-          </p>
+          <p className="rounded-xl bg-surface-2 p-3 text-sm text-fg-muted">{plotNote(plot)}</p>
         )}
       </div>
       <div className="border-t border-border-subtle p-4">
