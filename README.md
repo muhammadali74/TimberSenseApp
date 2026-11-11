@@ -13,7 +13,7 @@ npm install
 npm run dev            # http://localhost:5173
 ```
 
-Log in with **`demo@farmevo.ai` / `timbersense`**.
+Log in with `rana@farmevo.ai`, `ali_naqvi@farmevo.ai` or `zaryan_siddiqui@farmevo.ai`, password **`timbersense`** (accounts in `src/app/session.ts`).
 
 Python tooling (data prep) needs `python3` with `numpy`, `scipy` and `Pillow`, plus `ffmpeg` for video.
 
