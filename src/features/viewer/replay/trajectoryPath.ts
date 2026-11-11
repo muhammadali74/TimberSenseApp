@@ -1,7 +1,9 @@
 /**
  * WS-E. Pre-processed trajectory for smooth replay:
  *  - positions lightly smoothed (keeps the walking feel, removes SLAM jitter)
- *  - yaw smoothed with a speed-weighted Gaussian (standing still doesn't spin the view)
+ *  - yaw: real SLAM orientation (trajectory.yawSource 'orientation') gets only light smoothing to
+ *    remove footstep sway; walking-direction yaw ('velocity') gets a wider speed-weighted Gaussian
+ *    (standing still doesn't spin the view)
  *  - Catmull-Rom interpolation between the 10 Hz samples so the camera moves smoothly at 60 fps
  */
 import type {Trajectory} from '@/types';
@@ -28,7 +30,10 @@ export interface TrajectoryPath {
 }
 
 const POS_SIGMA_S = 0.12;
-const YAW_SIGMA_S = 0.6;
+/** walking-direction heading is noisy: smooth hard, and trust it less when barely moving */
+const YAW_SIGMA_VELOCITY_S = 0.6;
+/** real orientation is accurate: just take the edge off footstep sway */
+const YAW_SIGMA_ORIENTATION_S = 0.15;
 
 function gaussianSmooth(t: Float64Array, v: Float64Array, sigma: number, weight?: Float64Array): Float64Array {
   const out = new Float64Array(v.length);
@@ -81,7 +86,10 @@ export function buildPath(traj: Trajectory): TrajectoryPath {
     speed[i] = Math.hypot(xs[b] - xs[a], ys[b] - ys[a]) / dt;
   }
   const w = speed.map((s) => 0.05 + Math.min(1, s / 0.5));
-  const yaw = gaussianSmooth(t, yawRaw, YAW_SIGMA_S, w);
+  const yaw =
+    traj.yawSource === 'orientation'
+      ? gaussianSmooth(t, yawRaw, YAW_SIGMA_ORIENTATION_S)
+      : gaussianSmooth(t, yawRaw, YAW_SIGMA_VELOCITY_S, w);
   const dist = new Float64Array(n);
   for (let i = 1; i < n; i++) dist[i] = dist[i - 1] + Math.hypot(xs[i] - xs[i - 1], ys[i] - ys[i - 1]);
   return {t, x: xs, y: ys, z: zs, yaw, duration: traj.durationS || t[n - 1], sensorHeightM: traj.sensorHeightM, dist};

@@ -33,7 +33,7 @@ Inputs per plot (from `testdata/<plot>/`):
 - `trees/<id>/thumbnail.png`, `qsm_mesh.ply`: per-tree card image and optional QSM mesh
 - `visuals/*.png`: histograms and agreement charts for the plot report
 - video `.mp4` (HEVC 4K): keep a stream-copied **HEVC 4K** file for browsers that can decode it, and transcode to **H.264 4K/1080p/720p** because Chrome cannot reliably play HEVC
-- `traj.csv` (t, x, y, z; 10 Hz, 119 s): XY matches the cloud frame. Z is offset by about 19 m (the trajectory's z≈0 while the cloud's ground is at z≈19), so the path is drawn at local DTM height plus sensor height. There's no orientation data, so heading is derived from velocity.
+- `traj.csv` (t, x, y, z; 10 Hz, 119 s): XY matches the cloud frame. Z is offset by about 19 m (the trajectory's z≈0 while the cloud's ground is at z≈19), so the path is drawn at local DTM height plus sensor height. Heading comes from `traj.tum` (same timestamps, plus SLAM orientation quaternions qx qy qz qw): the lidar body's +X axis is forward. Without `traj.tum`, heading falls back to the walking direction.
 
 Outputs go to `public/data/plots/<plotId>/`. The exact formats are defined in **§5 Contracts**:
 - `plot.json`: the manifest for the plot
@@ -218,7 +218,8 @@ interface Tree {
 interface Trajectory {
   rateHz: number; durationS: number; sensorHeightM: number;
   videoOffsetS: number;                     // default 0: video t = traj t + offset
-  samples: [t: number, x: number, y: number, z: number, yaw: number][]; // t from 0 s, z on DTM + sensor height, yaw in radians from velocity
+  yawSource?: 'orientation' | 'velocity';   // absent = 'velocity' (older exports)
+  samples: [t: number, x: number, y: number, z: number, yaw: number][]; // t from 0 s, z on DTM + sensor height, yaw in radians CCW from +X (lidar body +X from traj.tum, or walking direction)
 }
 ```
 
@@ -442,7 +443,7 @@ Everything else starts once this is merged.
 - **Reveal mode:** sets `playback.reveal`, and the store passes `uRevealT` on to B's shader.
 - **First-person replay ("walk the capture"):** the headline feature. During replay the 3D camera walks through the point cloud exactly as the operator walked in the video, so the cloud and the front-camera footage move together.
   - **Pose:** position comes from `trajectory.samples` interpolated at the current time (Catmull-Rom, so motion is smooth at 60 fps between the 10 Hz samples). Height is the trajectory Z (DTM + sensor height) plus a calibration offset, so it follows the terrain like B's walk mode.
-  - **Heading:** yaw from the trajectory, smoothed with a ~0.6 s window so footstep jitter doesn't shake the view. There is no IMU orientation, so the view turns with the walking direction, not with head turns. This is a known limit of the data.
+  - **Heading:** from the SLAM orientation in `traj.tum` (`yawSource: 'orientation'`): the heading of the lidar body's +X axis, which is the forward direction (on `fariy_1_test` it stays within 30° of the walking direction 99.6% of the time, mean offset −3.7°). It's lightly smoothed (~0.15 s) to take out footstep sway, so the view turns when the operator turns, including turning on the spot. Exports without `traj.tum` fall back to the walking direction, smoothed over ~0.6 s and weighted by speed. Pitch and roll are in `traj.tum` too but are not used yet; tilt is still the calibration slider.
   - **Matching the footage:** the projection is built directly from the video's intrinsics in `camera.json` (fx, fy, cx, cy; §5.2b). The video frame is fitted inside the canvas, so horizontal **and** vertical FOV both match without stretching. A "video frame" outline shows where the video's edges fall, since the canvas is a different shape than 16:9.
   - **Calibration panel:** time offset (`videoOffsetS` default from the trajectory, ±1 frame nudges), heading offset, camera tilt, **horizontal FOV and vertical FOV** (default from `camera.json`, each resettable to it) and eye height. Values are saved per plot in the browser. Plots without `camera.json` fall back to 90° × 59°.
   - **Looking around:** while paused, drag to look around from the current spot. Pressing play eases the view back to the walking direction.

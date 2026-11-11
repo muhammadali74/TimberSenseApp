@@ -166,6 +166,7 @@ def validate(plot_dir: Path) -> Report:
         tr = json.loads((plot_dir / files["trajectory"]).read_text())
         for k in ("rateHz", "durationS", "sensorHeightM", "videoOffsetS", "samples"):
             r.check(k in tr, f"trajectory.json: missing '{k}'")
+        r.check(tr.get("yawSource", "velocity") in ("orientation", "velocity"), "trajectory.json: yawSource must be orientation|velocity")
         s = np.array(tr.get("samples", []), float)
         if r.check(s.ndim == 2 and s.shape[1] == 5, "trajectory.json: samples must be [t,x,y,z,yaw]"):
             r.check(abs(s[0, 0]) < 1e-6, "trajectory.json: first t must be 0")

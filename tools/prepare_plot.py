@@ -11,6 +11,7 @@ Input (pipeline output dir):
     trees.csv, plot_summary.json         per-tree + plot metrics            (required)
     trees/<id>/thumbnail.png, qsm_mesh.ply                                  (optional)
     traj.csv                             t,x,y,z sensor positions           (optional)
+    traj.tum                             t x y z qx qy qz qw SLAM poses     (optional → heading from orientation)
     visuals/*.png                        report charts                      (optional)
     *.mp4                                front camera video                 (optional)
     *_intrinsics.json                    pinhole intrinsics of that video   (optional → camera.json)
@@ -370,6 +371,23 @@ def compute_t_seen(pos: np.ndarray, samples: np.ndarray, step_s: float = 0.5) ->
     return t_seen
 
 
+def heading_from_tum(tum: Path, t_abs: np.ndarray) -> np.ndarray | None:
+    """Heading (rad, CCW from +X, unwrapped) of the lidar body's +X axis from SLAM orientation (TUM:
+    t x y z qx qy qz qw), sampled at the traj.csv times. Body +X is the forward direction: while
+    walking it stays within 30° of the walking direction 99.6% of the time (fariy_1_test).
+    The plot frame differs from the SLAM frame only by a translation, so the heading carries over."""
+    d = np.loadtxt(tum, ndmin=2)
+    if d.shape[1] < 8 or len(d) < 2:
+        return None
+    tt = d[:, 0]
+    qx, qy, qz, qw = (d[:, i] for i in range(4, 8))
+    yaw = np.unwrap(np.arctan2(2 * (qx * qy + qz * qw), 1 - 2 * (qy * qy + qz * qz)))
+    if t_abs[0] < tt[0] - 0.05 or t_abs[-1] > tt[-1] + 0.05:
+        log(f"heading: {tum.name} does not cover traj.csv ({tt[0]:.2f}-{tt[-1]:.2f} s), using walking direction")
+        return None
+    return np.interp(t_abs, tt, yaw)
+
+
 def export_trajectory(out: Path, traj_csv: Path, offset: np.ndarray, ground: Ground, sensor_h: float) -> np.ndarray:
     raw = np.genfromtxt(traj_csv, delimiter=",", names=True)
     t = raw["t"] - raw["t"][0]
@@ -381,7 +399,13 @@ def export_trajectory(out: Path, traj_csv: Path, offset: np.ndarray, ground: Gro
         return np.convolve(np.pad(a, k // 2, mode="edge"), np.ones(k) / k, mode="valid")
 
     xs, ys, zs = smooth(x), smooth(y), smooth(z, 15)
-    yaw = smooth(np.unwrap(np.arctan2(np.gradient(smooth(ys, 15)), np.gradient(smooth(xs, 15)))), 15)
+    # Heading: real SLAM orientation when traj.tum is available, else derived from the walking direction.
+    tum = traj_csv.with_name("traj.tum")
+    yaw = heading_from_tum(tum, raw["t"]) if tum.exists() else None
+    yaw_source = "orientation" if yaw is not None else "velocity"
+    if yaw is None:
+        yaw = smooth(np.unwrap(np.arctan2(np.gradient(smooth(ys, 15)), np.gradient(smooth(xs, 15)))), 15)
+    log(f"trajectory heading: {yaw_source}" + (f" ({tum.name})" if yaw_source == "orientation" else ""))
     samples = np.column_stack([t, x - offset[0], y - offset[1], zs - offset[2], yaw])
     duration = float(t[-1])
     write_json(out / "trajectory.json", {
@@ -389,6 +413,7 @@ def export_trajectory(out: Path, traj_csv: Path, offset: np.ndarray, ground: Gro
         "durationS": round(duration, 3),
         "sensorHeightM": sensor_h,
         "videoOffsetS": 0,
+        "yawSource": yaw_source,
         "samples": [[round(float(v), 4) for v in row] for row in samples],
     }, indent=None)
     return samples
