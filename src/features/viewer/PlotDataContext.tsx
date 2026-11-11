@@ -3,7 +3,7 @@
  * Read with `usePlotData()`; never refetch plot files inside a layer.
  */
 import {createContext, useContext} from 'react';
-import type {CloudData, PlotManifest, Trajectory, Tree} from '@/types';
+import type {CameraIntrinsics, CloudData, PlotManifest, Trajectory, Tree} from '@/types';
 
 export interface PlotData {
   /** e.g. '/data/plots/fariy_1_test' — resolve relative manifest paths with plotUrl(plotDir, rel) */
@@ -14,6 +14,8 @@ export interface PlotData {
   /** id → tree, for O(1) lookups from instance ids */
   treesById: Map<number, Tree>;
   trajectory: Trajectory | null;
+  /** Front-camera intrinsics (camera.json), null when the plot has none. */
+  camera: CameraIntrinsics | null;
 }
 
 export const PlotDataContext = createContext<PlotData | null>(null);

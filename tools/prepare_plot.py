@@ -10,11 +10,16 @@ Input (pipeline output dir):
     forest_pipeline/*_dtm_complete.ply   ground model points                (optional, falls back to *_dtm.ply / ground points)
     trees.csv, plot_summary.json         per-tree + plot metrics            (required)
     trees/<id>/thumbnail.png, qsm_mesh.ply                                  (optional)
-    traj.csv                             t,x,y,z sensor positions           (optional)
+    traj.tum                             t x y z qx qy qz qw SLAM poses     (optional; preferred → positions + heading)
+    traj.csv                             t,x,y,z sensor positions           (optional; used when there is no traj.tum)
+                                         Both must be in the cloud's frame (traj.tum of fariy_1_test was shifted
+                                         into the segmentation pipeline's frame; original in traj_backup.tum).
     visuals/*.png                        report charts                      (optional)
     *.mp4                                front camera video                 (optional)
+    *_intrinsics.json                    pinhole intrinsics of that video   (optional → camera.json)
+                                         written by hevc_to_mp4.py --undistort
 
-Output (plot dir): plot.json, cloud.json + cloud.bin, trees.json, trajectory.json, dtm.glb,
+Output (plot dir): plot.json, cloud.json + cloud.bin, trees.json, trajectory.json, dtm.glb, camera.json,
 media/{thumbs,qsm,video}/, media/*.png. Existing media/video/ renditions are reused unless --force-video.
 
 Dependencies: numpy, scipy, Pillow; ffmpeg for video.
@@ -368,18 +373,56 @@ def compute_t_seen(pos: np.ndarray, samples: np.ndarray, step_s: float = 0.5) ->
     return t_seen
 
 
-def export_trajectory(out: Path, traj_csv: Path, offset: np.ndarray, ground: Ground, sensor_h: float) -> np.ndarray:
-    raw = np.genfromtxt(traj_csv, delimiter=",", names=True)
-    t = raw["t"] - raw["t"][0]
-    # traj.csv shares the cloud's XY frame but not its vertical datum → drape on the DTM + sensor height.
-    x, y = raw["x"], raw["y"]
+def heading_from_tum(tum: Path, t_abs: np.ndarray) -> np.ndarray | None:
+    """Heading (rad, CCW from +X, unwrapped) of the lidar body's +X axis from SLAM orientation (TUM:
+    t x y z qx qy qz qw), sampled at the trajectory times. Body +X is the forward direction: while
+    walking it stays within 30° of the walking direction 99.6% of the time (fariy_1_test).
+    The plot frame differs from the SLAM frame only by a translation, so the heading carries over."""
+    d = np.loadtxt(tum, ndmin=2)
+    if d.shape[1] < 8 or len(d) < 2:
+        return None
+    tt = d[:, 0]
+    qx, qy, qz, qw = (d[:, i] for i in range(4, 8))
+    yaw = np.unwrap(np.arctan2(2 * (qx * qy + qz * qw), 1 - 2 * (qy * qy + qz * qz)))
+    if t_abs[0] < tt[0] - 0.05 or t_abs[-1] > tt[-1] + 0.05:
+        log(f"heading: {tum.name} does not cover the trajectory ({tt[0]:.2f}-{tt[-1]:.2f} s), using walking direction")
+        return None
+    return np.interp(t_abs, tt, yaw)
+
+
+def read_positions(src: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray, Path] | None:
+    """(t_abs, x, y, file) of the sensor path: traj.tum when present, else traj.csv. None if neither exists."""
+    tum, csv_ = src / "traj.tum", src / "traj.csv"
+    if tum.exists():
+        d = np.loadtxt(tum, comments="#", ndmin=2)
+        return d[:, 0], d[:, 1], d[:, 2], tum
+    if csv_.exists():
+        raw = np.genfromtxt(csv_, delimiter=",", names=True)
+        return raw["t"], raw["x"], raw["y"], csv_
+    return None
+
+
+def export_trajectory(out: Path, src: Path, offset: np.ndarray, ground: Ground, sensor_h: float) -> np.ndarray | None:
+    pos = read_positions(src)
+    if pos is None:
+        return None
+    t_abs, x, y, pos_file = pos
+    log(f"trajectory positions: {pos_file.name}")
+    t = t_abs - t_abs[0]
+    # XY must be in the cloud's frame; the SLAM vertical datum isn't used → drape on the DTM + sensor height.
     z = ground(x, y) + sensor_h
 
     def smooth(a, k=9):
         return np.convolve(np.pad(a, k // 2, mode="edge"), np.ones(k) / k, mode="valid")
 
     xs, ys, zs = smooth(x), smooth(y), smooth(z, 15)
-    yaw = smooth(np.unwrap(np.arctan2(np.gradient(smooth(ys, 15)), np.gradient(smooth(xs, 15)))), 15)
+    # Heading: real SLAM orientation when traj.tum is available, else derived from the walking direction.
+    tum = src / "traj.tum"
+    yaw = heading_from_tum(tum, t_abs) if tum.exists() else None
+    yaw_source = "orientation" if yaw is not None else "velocity"
+    if yaw is None:
+        yaw = smooth(np.unwrap(np.arctan2(np.gradient(smooth(ys, 15)), np.gradient(smooth(xs, 15)))), 15)
+    log(f"trajectory heading: {yaw_source}" + (f" ({tum.name})" if yaw_source == "orientation" else ""))
     samples = np.column_stack([t, x - offset[0], y - offset[1], zs - offset[2], yaw])
     duration = float(t[-1])
     write_json(out / "trajectory.json", {
@@ -387,6 +430,7 @@ def export_trajectory(out: Path, traj_csv: Path, offset: np.ndarray, ground: Gro
         "durationS": round(duration, 3),
         "sensorHeightM": sensor_h,
         "videoOffsetS": 0,
+        "yawSource": yaw_source,
         "samples": [[round(float(v), 4) for v in row] for row in samples],
     }, indent=None)
     return samples
@@ -562,15 +606,103 @@ def capture_date_from(video: Path | None, fallback: str) -> str:
     return fallback
 
 
-def export_video(out: Path, video: Path, force: bool) -> dict:
+def export_video(out: Path, video: Path, force: bool) -> tuple[dict, dict]:
+    """Returns (files.video, files.videoRenditions). Renditions are listed best-first for WS-E's player."""
     vdir = out / "media" / "video"
-    files = {"1080": vdir / "front_1080.mp4", "720": vdir / "front_720.mp4", "poster": vdir / "front_poster.jpg"}
-    if force or not all(f.exists() for f in files.values()):
-        log(f"transcoding {video.name} (this takes a few minutes)…")
+    needed = [vdir / n for n in ("front_2160.mp4", "front_1080.mp4", "front_720.mp4", "front_poster.jpg")]
+    if force or not all(f.exists() for f in needed):
+        log(f"transcoding {video.name} incl. 4K (this takes several minutes)…")
         subprocess.run([str(TOOLS / "transcode.sh"), str(video), str(vdir), "front"], check=True)
     else:
         log("video: reusing existing renditions")
-    return {"front": "media/video/front_720.mp4"}
+    candidates = [
+        ("front_2160_hevc.mp4", "hevc", 2160),
+        ("front_2160.mp4", "h264", 2160),
+        ("front_1080.mp4", "h264", 1080),
+        ("front_720.mp4", "h264", 720),
+    ]
+    renditions = [
+        {"src": f"media/video/{name}", "codec": codec, "width": round(h * 16 / 9), "height": h}
+        for name, codec, h in candidates
+        if (vdir / name).exists()
+    ]
+    return {"front": "media/video/front_720.mp4"}, {"front": renditions}
+
+
+def _fisheye_from_mat(mat_path: Path) -> dict | None:
+    """Best effort: raw-lens fisheye model (MATLAB fisheyeParameters) for reference in camera.json."""
+    try:
+        import io
+        import warnings
+
+        import scipy.io as sio
+        from scipy.io.matlab import _mio5
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            top = sio.loadmat(mat_path, squeeze_me=True, struct_as_record=False)
+            raw = np.asarray(top["__function_workspace__"]).tobytes()
+            f = io.BytesIO(b"MATLAB 5.0 MAT-file".ljust(116) + bytes(8) + raw[:4] + raw[8:])
+            reader = _mio5.MatFile5Reader(f, squeeze_me=True, struct_as_record=False)
+            reader.initialize_read()
+            f.seek(128)
+            hdr, _ = reader.read_var_header()
+            stack = [reader.read_var_array(hdr, process=True)]
+        while stack:
+            o = stack.pop()
+            if hasattr(o, "_fieldnames"):
+                if {"MappingCoefficients", "DistortionCenter"} <= set(o._fieldnames):
+                    return {
+                        "model": "scaramuzza",
+                        "mappingCoefficients": np.atleast_1d(np.asarray(o.MappingCoefficients, float)).tolist(),
+                        # MATLAB is 1-based; stored 0-based like the pinhole K
+                        "distortionCenter": (np.asarray(o.DistortionCenter, float) - 1).round(4).tolist(),
+                        "stretchMatrix": np.asarray(o.StretchMatrix, float).reshape(2, 2).round(6).tolist(),
+                        "imageSize": [int(v) for v in np.atleast_1d(o.ImageSize)][::-1],  # [width, height]
+                    }
+                stack.extend(getattr(o, k) for k in o._fieldnames)
+            elif isinstance(o, np.ndarray) and o.dtype == object:
+                stack.extend(o.flat)
+            elif isinstance(o, np.ndarray) and o.dtype.names:
+                stack.extend(x for name in o.dtype.names for x in o[name].flat)
+    except Exception as e:  # noqa: BLE001 — reference data only
+        log(f"camera: fisheye model not read from {mat_path} ({e})")
+    return None
+
+
+def export_camera(out: Path, src: Path) -> str | None:
+    """camera.json (PLAN.md §5.2) from the *_intrinsics.json that hevc_to_mp4.py --undistort writes."""
+    found = sorted(src.glob("*_intrinsics.json"))
+    if not found:
+        return None
+    k = json.loads(found[0].read_text())
+    w, h = int(k["width"]), int(k["height"])
+    fx, fy, cx, cy = (float(k[n]) for n in ("fx", "fy", "cx", "cy"))
+    cam = {
+        "version": 1,
+        "model": "pinhole",
+        "width": w,
+        "height": h,
+        "fx": fx,
+        "fy": fy,
+        "cx": cx,
+        "cy": cy,
+        "hfovDeg": round(math.degrees(2 * math.atan(w / 2 / fx)), 3),
+        "vfovDeg": round(math.degrees(2 * math.atan(h / 2 / fy)), 3),
+        "source": {
+            "tool": "hevc_to_mp4.py --undistort",
+            "file": found[0].name,
+            "scaleFactor": k.get("scale_factor"),
+            "calibration": Path(k["calibration"]).name if k.get("calibration") else None,
+        },
+    }
+    if k.get("calibration") and Path(k["calibration"]).is_file():
+        fisheye = _fisheye_from_mat(Path(k["calibration"]))
+        if fisheye:
+            cam["fisheye"] = fisheye
+    write_json(out / "camera.json", cam)
+    log(f"camera.json: {w}x{h}, fx {fx:.1f}, FOV {cam['hfovDeg']}° x {cam['vfovDeg']}°")
+    return "camera.json"
 
 
 # ════════════════════════════════ main ════════════════════════════════
@@ -652,8 +784,8 @@ def main(argv=None) -> None:
 
     t_seen = np.zeros(len(pos), np.uint16)
     files: dict = {"cloud": "cloud.json", "trees": "trees.json", "dtm": "dtm.glb"}
-    if (src / "traj.csv").exists():
-        samples = export_trajectory(out, src / "traj.csv", offset, ground, args.sensor_height)
+    samples = export_trajectory(out, src, offset, ground, args.sensor_height)
+    if samples is not None:
         files["trajectory"] = "trajectory.json"
         log(f"trajectory.json: {len(samples)} samples, {samples[-1, 0]:.1f} s")
         t_seen = compute_t_seen(pos, samples)
@@ -675,7 +807,10 @@ def main(argv=None) -> None:
     videos = sorted(src.glob("*.mp4"))
     video = args.video or (videos[0] if videos else None)
     if video and not args.no_video:
-        files["video"] = export_video(out, video, args.force_video)
+        files["video"], files["videoRenditions"] = export_video(out, video, args.force_video)
+    camera = export_camera(out, src)
+    if camera:
+        files["camera"] = camera
     elif args.no_video and (out / "media" / "video").exists():
         shutil.rmtree(out / "media" / "video")
 

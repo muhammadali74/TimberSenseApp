@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # Transcode a capture video (e.g. 4K HEVC, which Chrome can't reliably play) into web-friendly
-# H.264 renditions + a poster frame.
+# renditions + a poster frame.
 #
 #   tools/transcode.sh <input.mp4> <out_dir> [name]
 #
-# Writes <out_dir>/<name>_1080.mp4, <name>_720.mp4 and <name>_poster.jpg (name defaults to "front").
+# Writes into <out_dir> (name defaults to "front"):
+#   <name>_2160_hevc.mp4  original HEVC stream, copied (no re-encode, no quality loss) — only if the source is HEVC
+#   <name>_2160.mp4       4K H.264 (plays everywhere; ~2–3× the 1080p size)
+#   <name>_1080.mp4, <name>_720.mp4, <name>_poster.jpg
 # Uses NVIDIA NVENC when available, otherwise libx264. +faststart lets the browser seek before download ends.
 set -euo pipefail
 
@@ -15,11 +18,13 @@ mkdir -p "$out"
 
 if ffmpeg -hide_banner -loglevel error -f lavfi -i nullsrc=s=256x256:d=0.1 -c:v h264_nvenc -f null - 2>/dev/null; then
   enc=(-c:v h264_nvenc -preset p5 -rc vbr -profile:v high -pix_fmt yuv420p)
+  q2160=(-cq 23 -b:v 20M -maxrate 30M -bufsize 40M -level:v 5.1)
   q1080=(-cq 25 -b:v 6M -maxrate 9M -bufsize 12M)
   q720=(-cq 27 -b:v 3M -maxrate 4.5M -bufsize 6M)
   echo "encoder: h264_nvenc"
 else
   enc=(-c:v libx264 -preset medium -profile:v high -pix_fmt yuv420p)
+  q2160=(-crf 21 -maxrate 30M -bufsize 40M -level:v 5.1)
   q1080=(-crf 23 -maxrate 9M -bufsize 12M)
   q720=(-crf 25 -maxrate 4.5M -bufsize 6M)
   echo "encoder: libx264"
@@ -29,6 +34,15 @@ fi
 pre=(-hide_banner -loglevel warning -stats -y)
 post=(-an -movflags +faststart -g 15 -keyint_min 15)
 
+# 4K: keep the original HEVC stream as-is (browsers with HEVC decode get full quality for free)…
+src_codec=$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 "$in")
+if [[ "$src_codec" == "hevc" ]]; then
+  ffmpeg "${pre[@]}" -i "$in" -map 0:v:0 -c:v copy -tag:v hvc1 -an -movflags +faststart "$out/${name}_2160_hevc.mp4"
+else
+  rm -f "$out/${name}_2160_hevc.mp4"
+fi
+# …and a 4K H.264 encode for everything else.
+ffmpeg "${pre[@]}" -i "$in" -vf "scale=-2:2160" "${enc[@]}" "${q2160[@]}" "${post[@]}" "$out/${name}_2160.mp4"
 ffmpeg "${pre[@]}" -i "$in" -vf "scale=-2:1080" "${enc[@]}" "${q1080[@]}" "${post[@]}" "$out/${name}_1080.mp4"
 ffmpeg "${pre[@]}" -i "$in" -vf "scale=-2:720" "${enc[@]}" "${q720[@]}" "${post[@]}" "$out/${name}_720.mp4"
 ffmpeg -hide_banner -loglevel error -y -ss 2 -i "$in" -frames:v 1 -vf "scale=-2:720" -q:v 3 "$out/${name}_poster.jpg"

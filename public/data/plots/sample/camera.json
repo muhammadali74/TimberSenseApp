@@ -1,0 +1,45 @@
+{
+ "version": 1,
+ "model": "pinhole",
+ "width": 3840,
+ "height": 2160,
+ "fx": 1889.4461652399716,
+ "fy": 1889.4461652399716,
+ "cx": 1919.5,
+ "cy": 1079.5,
+ "hfovDeg": 90.919,
+ "vfovDeg": 59.504,
+ "source": {
+  "tool": "hevc_to_mp4.py --undistort",
+  "file": "20260930_162835_T5D1_undistorted_intrinsics.json",
+  "scaleFactor": 1.0,
+  "calibration": "matlab.mat"
+ },
+ "fisheye": {
+  "model": "scaramuzza",
+  "mappingCoefficients": [
+   1889.4461652399716,
+   -0.00023263538044213537,
+   3.432512051621658e-08,
+   -1.9713859122132226e-11
+  ],
+  "distortionCenter": [
+   2018.5524,
+   1257.6521
+  ],
+  "stretchMatrix": [
+   [
+    0.998167,
+    0.040463
+   ],
+   [
+    -0.040406,
+    1.0
+   ]
+  ],
+  "imageSize": [
+   3840,
+   2160
+  ]
+ }
+}

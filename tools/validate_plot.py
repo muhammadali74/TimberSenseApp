@@ -77,6 +77,17 @@ def validate(plot_dir: Path) -> Report:
     for cam, rel in (files.get("video") or {}).items():
         r.check(cam in CAMERAS, f"files.video: unknown camera '{cam}'")
         exists(rel, f"files.video.{cam}")
+    for cam, rends in (files.get("videoRenditions") or {}).items():
+        r.check(cam in CAMERAS, f"files.videoRenditions: unknown camera '{cam}'")
+        for i, v in enumerate(rends):
+            r.check(v.get("codec") in ("hevc", "h264"), f"files.videoRenditions.{cam}[{i}]: codec must be hevc|h264")
+            r.check(all(isinstance(v.get(k), int) for k in ("width", "height")), f"files.videoRenditions.{cam}[{i}]: width/height")
+            exists(v.get("src", ""), f"files.videoRenditions.{cam}[{i}]")
+    if "camera" in files and exists(files["camera"], "files.camera"):
+        cam = json.loads((plot_dir / files["camera"]).read_text())
+        r.check(cam.get("version") == 1 and cam.get("model") == "pinhole", "camera.json: version 1, model pinhole")
+        for k in ("width", "height", "fx", "fy", "cx", "cy", "hfovDeg", "vfovDeg"):
+            r.check(isinstance(cam.get(k), (int, float)) and cam[k] > 0, f"camera.json: {k} must be a positive number")
     for key, rel in (files.get("charts") or {}).items():
         exists(rel, f"files.charts.{key}")
 
@@ -155,6 +166,7 @@ def validate(plot_dir: Path) -> Report:
         tr = json.loads((plot_dir / files["trajectory"]).read_text())
         for k in ("rateHz", "durationS", "sensorHeightM", "videoOffsetS", "samples"):
             r.check(k in tr, f"trajectory.json: missing '{k}'")
+        r.check(tr.get("yawSource", "velocity") in ("orientation", "velocity"), "trajectory.json: yawSource must be orientation|velocity")
         s = np.array(tr.get("samples", []), float)
         if r.check(s.ndim == 2 and s.shape[1] == 5, "trajectory.json: samples must be [t,x,y,z,yaw]"):
             r.check(abs(s[0, 0]) < 1e-6, "trajectory.json: first t must be 0")
