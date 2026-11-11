@@ -490,3 +490,21 @@ input[type="number"] {
     transform: translateY(-6px);
   }
 }
+
+/* ── OpenLayers (WS-H) ── */
+.ol-scale-line {
+  left: auto;
+  right: 72px;
+  bottom: 12px;
+  background: var(--color-map-control-bg);
+  border-radius: 6px;
+}
+.ol-scale-line-inner {
+  color: var(--color-fg);
+  border-color: var(--color-fg-muted);
+  font-size: 10px;
+}
+.ol-attribution {
+  bottom: 4px;
+  right: 4px;
+}
