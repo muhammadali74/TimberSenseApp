@@ -33,11 +33,31 @@ Python tooling (data prep) needs `python3` with `numpy`, `scipy` and `Pillow`, p
 
 - `public/data/plots/<plotId>/` holds the web-ready plot files in the §5 formats: `plot.json`, `cloud.json`/`cloud.bin`, `trees.json`, `trajectory.json` and `media/`.
 - **`sample/`** (300k points) is committed, so every workstream can develop without the raw data.
-- Full plots such as `fariy_1_test` are generated locally with `npm run plot:export` and are git-ignored (about 330 MB including video).
+- Full plots such as `fariy_1_test` are generated locally with `npm run plot:export` and are git-ignored (about 1.7 GB including the 4K video renditions).
 - New plots: `python3 tools/prepare_plot.py <pipeline_output_dir> public/data/plots/<id> --name "…" --geo lat,lon`, then add a `PlotRef` with `dataPath: '/data/plots/<id>'` to `src/data/catalog.ts`.
-- Raw pipeline output lives in `testdata/` (git-ignored, about 3 GB).
+- Raw pipeline output lives in `testdata/` (git-ignored, about 3 GB). See [Test data](#test-data) for where to download it.
 
 Open the sample viewer at `/projects/kotli-sattian/blocks/ks-b01/plots/sample`.
+
+## Test data
+
+The full test plot (`fariy_1_test`) is too large for git. Download it from Google Drive:
+
+**https://drive.google.com/drive/folders/1KdaIFkWjldTC48Mgc5zDRw7Yb-nrFTDk?usp=sharing**
+
+Put it where its contents belong. The folder name `fariy_1_test` (sic) must be kept exactly, because the catalog and scripts use it.
+
+| If the download contains… | Put it at | Then |
+|---|---|---|
+| raw pipeline output (`visuals/`, `forest_pipeline/`, `trees.csv`, `traj.tum`, the `.mp4`, `*_intrinsics.json`) | `testdata/fariy_1_test/` | `npm run plot:export`, then `npm run plot:validate` |
+| a ready web export (`plot.json`, `cloud.bin`, `trees.json`, `media/video/`) | `public/data/plots/fariy_1_test/` | `npm run plot:validate` (no export needed) |
+
+Then run `npm run dev` and open `/projects/kotli-sattian/blocks/ks-b01/plots/fariy_1_test`.
+
+Notes:
+- `traj.tum` in the test data is already shifted into the point cloud's frame (the segmentation pipeline moves the map by (−0.836, −2.372, +20.665) m). `traj_backup.tum` is the original SLAM-frame file. The exporter reads path positions and heading from `traj.tum`, so a plot from the same pipeline needs the same correction before export, or the capture path runs through the trees.
+- The first export transcodes the video (about 2 min with `ffmpeg`). Later exports reuse the renditions in `media/video/`.
+- Without the download, everything still works on the committed `sample/` plot.
 
 ## Where things live
 
