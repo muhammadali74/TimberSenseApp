@@ -85,11 +85,11 @@ export function LoginPage() {
 
   return (
     <div className="flex h-full min-h-screen w-full bg-surface">
-      <div className="hidden md:flex md:w-1/2 lg:w-[55%] xl:w-[58%]">
+      <div className="hidden md:flex md:w-1/2 lg:w-[60%] xl:w-[67%] 2xl:w-[70%]">
         <FeatureCarousel />
       </div>
-      <div className="w-full overflow-y-auto md:w-1/2 lg:w-[45%] xl:w-[42%]">
-        <div className="flex min-h-full items-center justify-center px-8 py-12 md:px-12 lg:px-16">
+      <div className="w-full overflow-y-auto md:w-1/2 lg:w-[40%] xl:w-[33%] 2xl:w-[30%]">
+        <div className="flex min-h-full items-center justify-center px-8 py-12 md:px-10">
           <div className="w-full max-w-[380px]">
             <div className="mb-8 flex flex-col items-center">
               <Logo variant="mark" className="h-11 w-11" />
