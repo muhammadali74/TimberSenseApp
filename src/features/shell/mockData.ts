@@ -145,10 +145,26 @@ export interface TeamMember {
 export const TEAM: TeamMember[] = [
   {
     id: 'u1',
-    name: 'Demo Forester',
-    email: 'demo@farmevo.ai',
+    name: 'Rana',
+    email: 'rana@farmevo.ai',
     role: 'Cruise Manager',
     lastActive: ago(1),
+    status: 'active',
+  },
+  {
+    id: 'u1b',
+    name: 'Ali Naqvi',
+    email: 'ali_naqvi@farmevo.ai',
+    role: 'Cruise Manager',
+    lastActive: ago(12),
+    status: 'active',
+  },
+  {
+    id: 'u1c',
+    name: 'Zaryan Siddiqui',
+    email: 'zaryan_siddiqui@farmevo.ai',
+    role: 'Cruise Manager',
+    lastActive: ago(45),
     status: 'active',
   },
   {

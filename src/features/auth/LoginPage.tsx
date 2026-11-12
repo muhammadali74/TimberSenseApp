@@ -1,8 +1,8 @@
-/** WS-G. Login — SylvaSense split layout: feature carousel left, form right. Demo credentials only. */
+/** WS-G. Login — SylvaSense split layout: feature carousel left, form right. Accounts in app/session.ts. */
 import {Eye, EyeOff, Loader2} from 'lucide-react';
 import {type FormEvent, useState} from 'react';
 import {Navigate, useLocation, useNavigate} from 'react-router-dom';
-import {DEMO_CREDENTIALS, useSession} from '@/app/session';
+import {useSession} from '@/app/session';
 import {Logo, Modal} from '@/components/ui';
 import {cn} from '@/lib/cn';
 import {FeatureCarousel} from './FeatureCarousel';
@@ -58,7 +58,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as {from?: string} | null)?.from ?? '/';
-  const [email, setEmail] = useState<string>(DEMO_CREDENTIALS.email);
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,13 +74,13 @@ export function LoginPage() {
     const ok = await login(email, password);
     setBusy(false);
     if (ok) navigate(from, {replace: true});
-    else setError('Incorrect email or password. Use the demo credentials below.');
+    else setError('Incorrect email or password.');
   };
 
   const sso = (provider: string) =>
     setInfo({
       title: `Sign in with ${provider}`,
-      body: `Single sign-on isn’t enabled for this demo workspace. Use the demo account instead.`,
+      body: `Single sign-on isn’t enabled for this demo workspace. Sign in with your email and password instead.`,
     });
 
   return (
@@ -138,7 +138,7 @@ export function LoginPage() {
                 onClick={() =>
                   setInfo({
                     title: 'Reset your password',
-                    body: 'Password resets are handled by your workspace admin. For this demo, use the credentials shown below the form.',
+                    body: 'Password resets are handled by your workspace admin. Contact your Farmevo workspace admin.',
                   })
                 }
                 className="w-fit text-sm font-medium text-fg-muted underline hover:text-fg cursor-pointer"
@@ -164,11 +164,6 @@ export function LoginPage() {
             <div className="grid gap-3">
               <SsoButton icon={GoogleIcon} label="Sign in with Google" onClick={() => sso('Google')} />
               <SsoButton icon={MicrosoftIcon} label="Sign in with Microsoft" onClick={() => sso('Microsoft')} />
-            </div>
-
-            <div className="mt-6 rounded-xl border border-dashed border-border bg-surface-2 px-4 py-3 text-center text-xs text-fg-muted">
-              Demo account · <span className="fd-mono text-fg">{DEMO_CREDENTIALS.email}</span> /{' '}
-              <span className="fd-mono text-fg">{DEMO_CREDENTIALS.password}</span>
             </div>
 
             <div className="mt-8 flex items-center justify-center gap-4 text-sm text-fg-muted">
