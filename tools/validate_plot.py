@@ -142,8 +142,8 @@ def validate(plot_dir: Path) -> Report:
             r.check(len(t.get("base", [])) == 3 and len(t.get("top", [])) == 3, f"trees.json[{tid}]: base/top xyz")
             r.check(t.get("qsmStatus") in QSM_STATUS, f"trees.json[{tid}]: bad qsmStatus")
             if t.get("valid"):
-                r.check(t.get("dbhCm") is not None and t.get("heightM") is not None,
-                        f"trees.json[{tid}]: valid tree without dbhCm/heightM")
+                # The pipeline can accept a tree (height measured) whose DBH fit failed → dbhCm null.
+                r.check(t.get("heightM") is not None, f"trees.json[{tid}]: valid tree without heightM")
             elif not t.get("rejectReason"):
                 r.warn(f"trees.json[{tid}]: rejected tree without rejectReason")
             rings = t.get("dbhRings")
@@ -158,6 +158,9 @@ def validate(plot_dir: Path) -> Report:
                 if t.get(k):
                     exists(t[k], f"trees.json[{tid}].{k}")
         nvalid = sum(t.get("valid", False) for t in trees)
+        nodbh = sum(1 for t in trees if t.get("valid") and t.get("dbhCm") is None)
+        if nodbh:
+            r.warn(f"info: {nodbh} valid trees without a DBH (fit failed)")
         if nvalid != m.get("summary", {}).get("nValidTrees"):
             r.warn(f"trees.json: {nvalid} valid trees vs summary.nValidTrees={m['summary'].get('nValidTrees')}")
 

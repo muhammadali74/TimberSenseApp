@@ -35,8 +35,36 @@ export const FARIY_1_TEST_SUMMARY: PlotSummary = {
   nThinningRemove: 12,
 };
 
+/** From testdata/map_fused_cropped_r20_ff3d/plot_summary.json (exported as fairy_2). */
+export const FAIRY_2_SUMMARY: PlotSummary = {
+  plotAreaM2: 1623.25,
+  nInstances: 191,
+  nValidTrees: 154,
+  nRejected: 37,
+  stemsPerHa: 948.7,
+  dbhCmMean: 19.75,
+  dbhCmMedian: 18.41,
+  dbhCmMin: 8.22,
+  dbhCmMax: 72.34,
+  quadraticMeanDbhCm: 21.43,
+  heightMMean: 8.19,
+  heightMMax: 22.99,
+  basalAreaM2: 3.608,
+  basalAreaM2PerHa: 22.23,
+  woodVolumeM3: 19.464,
+  woodVolumeM3PerHa: 119.91,
+  biomassT: 9.732,
+  biomassTPerHa: 59.95,
+  carbonT: 4.866,
+  co2eT: 17.843,
+  nSpacingConflictTrees: 122,
+  nThinningRemove: 69,
+};
+
 /** Plot FR-01 location (plot.json geo) — approximate until the GPS fix is confirmed. */
 const FR01: LonLat = [73.5237, 33.8086];
+/** Plot FR-02 location — approximate (no GPS fix yet), ~55 m NE of FR-01. */
+const FR02: LonLat = [73.5242, 33.8089];
 
 function blocks(
   seed: number,
@@ -67,6 +95,15 @@ const KS_BLOCKS: BlockSpec[] = [
         captureDate: '2026-09-30T16:28:35+05:00',
         dataPath: '/data/plots/fariy_1_test',
         summary: FARIY_1_TEST_SUMMARY,
+      },
+      {
+        id: 'fairy_2',
+        name: 'Plot FR-02',
+        center: FR02,
+        status: 'processed',
+        captureDate: '2026-09-30T15:52:24+05:00',
+        dataPath: '/data/plots/fairy_2',
+        summary: FAIRY_2_SUMMARY,
       },
       {
         // Same capture as FR-01, subsampled to 300k points for fast loading. No summary, so it
