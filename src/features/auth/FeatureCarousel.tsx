@@ -1,5 +1,6 @@
-/** WS-G. Vertical auto-scrolling feature cards on a green gradient (SylvaSense login style). */
+/** WS-G. Vertical auto-scrolling feature cards over a forest photo (SylvaSense login style). */
 import {useEffect, useRef, useState} from 'react';
+import loginBg from '@/assets/brand/login-bg.jpg';
 import {FEATURE_CARDS} from './FeatureCards';
 
 const INTERVAL_MS = 4200;
@@ -34,7 +35,17 @@ export function FeatureCarousel() {
 
   return (
     <div className="flex h-full w-full items-center justify-center bg-surface p-4 lg:p-6">
-      <div className="relative h-full w-full overflow-hidden rounded-[32px] bg-gradient-to-br from-[#3F6B47] via-[#7BA882] to-[#C5DCB5] lg:rounded-[40px]">
+      <div className="relative h-full w-full overflow-hidden rounded-[32px] bg-[#1f3a26] lg:rounded-[40px]">
+        {/* Forest photo, darkened and tinted brand-green so the white cards keep their contrast. */}
+        <img
+          src={loginBg}
+          alt=""
+          aria-hidden
+          className="absolute inset-0 h-full w-full object-cover object-[60%_center]"
+          decoding="async"
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0e2416]/80 via-[#1d4a2c]/45 to-[#3F6B47]/25" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(5,15,9,0.55)_100%)]" />
         <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
           <div
             className="flex w-[85%] max-w-[460px] min-w-[280px] flex-col md:w-[62%] xl:w-[48%]"
